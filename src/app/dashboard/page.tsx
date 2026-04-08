@@ -648,18 +648,23 @@ export default function DashboardPage() {
               <label className="text-sm font-medium text-muted-foreground">
                 رابط التحويل (اختياري)
               </label>
-              
+
               {/* اختيار صفحة من الموقع */}
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { name: 'الصفحة الرئيسية', url: '/' },
-                    { name: 'المفضلة', url: '/?tab=recent' },
-                    { name: 'القرآن الكريم', url: '/?tab=quran' },
-                    { name: 'المحطات الرواج', url: '/?tab=trending' },
-                    { name: 'حول التطبيق', url: '/about' },
-                    { name: 'اتصل بنا', url: '/contact' },
+                    { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
+                    { name: 'المفضلة', url: 'https://esma3radio.vercel.app/?tab=recent' },
+                    { name: 'القرآن الكريم', url: 'https://esma3radio.vercel.app/?tab=quran' },
+                    { name: 'المحطات الرائجة', url: 'https://esma3radio.vercel.app/?tab=trending' },
+                    { name: 'المكتبة', url: 'https://esma3radio.vercel.app/?tab=library' },
+                    { name: 'الإعدادات', url: 'https://esma3radio.vercel.app/?tab=settings' },
+                    { name: 'الدردشة', url: 'https://esma3radio.vercel.app/?tab=chat' },
+                    { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
+                    { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
+                    { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
+                    { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
                   ].map((page) => (
                     <Button
                       key={page.url}
@@ -674,21 +679,21 @@ export default function DashboardPage() {
                   ))}
                 </div>
               </div>
-              
+
               {/* أو كتابة رابط مخصص */}
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص:</label>
+                <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص (لمحطة معينة أو رابط خارجي):</label>
                 <Input
-                  placeholder="مثال: /station/abc123 أو https://example.com"
+                  placeholder="مثال: https://esma3radio.vercel.app/station/abc123 أو https://example.com"
                   value={newBroadcast.url}
                   onChange={(e) => setNewBroadcast(prev => ({ ...prev, url: e.target.value }))}
                   className="h-12"
                   dir="ltr"
                 />
               </div>
-              
+
               {newBroadcast.url && (
-                <p className="text-xs text-green-600">
+                <p className="text-xs text-green-600 break-all">
                   ✓ سيتم تحويل المستخدم إلى: {newBroadcast.url}
                 </p>
               )}
