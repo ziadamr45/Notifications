@@ -655,16 +655,11 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap gap-2">
                   {[
                     { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
-                    { name: 'المفضلة', url: 'https://esma3radio.vercel.app/?tab=recent' },
-                    { name: 'القرآن الكريم', url: 'https://esma3radio.vercel.app/?tab=quran' },
-                    { name: 'المحطات الرائجة', url: 'https://esma3radio.vercel.app/?tab=trending' },
-                    { name: 'المكتبة', url: 'https://esma3radio.vercel.app/?tab=library' },
-                    { name: 'الإعدادات', url: 'https://esma3radio.vercel.app/?tab=settings' },
-                    { name: 'الدردشة', url: 'https://esma3radio.vercel.app/?tab=chat' },
                     { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
                     { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
                     { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
                     { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
+                    { name: 'شروط الاستخدام', url: 'https://esma3radio.vercel.app/terms' },
                   ].map((page) => (
                     <Button
                       key={page.url}
