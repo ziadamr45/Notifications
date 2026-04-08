@@ -6,6 +6,9 @@ const ADMIN_PASSWORD = 'Cc33Gg44##';
 const AUTH_COOKIE_NAME = 'notifications_admin_auth';
 const AUTH_COOKIE_EXPIRY = 7; // أيام
 
+// API Key للمصادقة مع مشروع الراديو
+export const ADMIN_API_KEY = process.env.ADMIN_API_KEY || 'asmae-radio-admin-2024';
+
 export interface AdminUser {
   username: string;
   isAuthenticated: boolean;
