@@ -1,0 +1,33 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// هذا الجدول لتخزين الإشعارات المجدولة
+model ScheduledNotification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  time      String   // HH:mm format
+  days      String   // JSON array of day numbers [0,1,2,3,4,5,6]
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// سجل الإشعارات المرسلة
+model NotificationLog {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  sentTo    Int      // عدد المستلمين
+  sentAt    DateTime @default(now())
+  type      String   // 'broadcast' or 'specific'
+}
