@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       const data = await response.json();
       
       // تنسيق البيانات
-      const users = (data.subscribers || []).map((sub: SubscriberData) => ({
+      const users = (data.subscribers || data.users || []).map((sub: SubscriberData) => ({
         id: sub.userId || sub.id || 'unknown',
         name: sub.name || 'مستخدم بدون اسم',
         subscriptionsCount: sub.subscriptionsCount || 1,
@@ -54,8 +54,7 @@ export async function GET(request: NextRequest) {
       success: true,
       users: [],
     });
-  } catch (error) {
-    console.error('Users fetch error:', error);
+  } catch {
     return NextResponse.json({
       success: true,
       users: [],

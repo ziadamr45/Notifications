@@ -39,8 +39,7 @@ export async function GET(request: NextRequest) {
         notificationsSentToday: 0,
       },
     });
-  } catch (error) {
-    console.error('Stats fetch error:', error);
+  } catch {
     return NextResponse.json({
       success: true,
       stats: {

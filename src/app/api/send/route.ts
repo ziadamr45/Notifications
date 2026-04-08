@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         userIds,
         title,
-        message,
+        body: message,
       }),
     });
 
