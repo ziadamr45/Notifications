@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
     }
 
-    // ImgBB API Key - مجاني من imgbb.com
-    const IMGBB_API_KEY = process.env.IMGBB_API_KEY || 'd36eb4e8c4b4f8b9b3c7a5e6f2d1c0b9';
+    // ImgBB API Key
+    const IMGBB_API_KEY = process.env.IMGBB_API_KEY || 'e65fe4f12fa3ff0fe0612e978128c496';
 
     // رفع الصورة على ImgBB
     const formData = new FormData();
