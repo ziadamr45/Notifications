@@ -191,7 +191,8 @@ export default function DashboardPage() {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        const maxSize = 256;
+        // تصغير الحجم الأقصى 192x192 للإشعارات
+        const maxSize = 192;
         let width = img.width;
         let height = img.height;
 
@@ -218,25 +219,33 @@ export default function DashboardPage() {
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        const base64 = canvas.toDataURL('image/jpeg', 0.5);
-
-        if (base64.length > 3 * 1024) {
-          const smaller = canvas.toDataURL('image/jpeg', 0.3);
-          if (smaller.length <= 3 * 1024) {
-            resolve(smaller);
-          } else {
-            resolve(null);
-          }
-        } else {
-          resolve(base64);
+        
+        // نبدأ بجودة 0.7 ونقلل لو لازم
+        let quality = 0.7;
+        let base64 = canvas.toDataURL('image/jpeg', quality);
+        
+        // لو الصورة كبيرة، نقلل الجودة تدريجياً
+        while (base64.length > 3500 && quality > 0.1) {
+          quality -= 0.1;
+          base64 = canvas.toDataURL('image/jpeg', quality);
         }
+
+        // نرجع الصورة المضغوطة (لو لسه كبيرة الباك اند هيتعامل معاها)
+        resolve(base64);
       };
 
-      img.onerror = () => resolve(null);
+      img.onerror = () => {
+        console.error('Failed to load image');
+        resolve(null);
+      };
 
       const reader = new FileReader();
       reader.onload = (event) => {
         img.src = event.target?.result as string;
+      };
+      reader.onerror = () => {
+        console.error('Failed to read file');
+        resolve(null);
       };
       reader.readAsDataURL(file);
     });
