@@ -644,20 +644,54 @@ export default function DashboardPage() {
             />
             
             {/* رابط التحويل */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-medium text-muted-foreground">
                 رابط التحويل (اختياري)
               </label>
-              <Input
-                placeholder="مثال: /station/abc123 أو https://esma3radio.vercel.app/quran"
-                value={newBroadcast.url}
-                onChange={(e) => setNewBroadcast(prev => ({ ...prev, url: e.target.value }))}
-                className="h-12"
-                dir="ltr"
-              />
-              <p className="text-xs text-muted-foreground">
-                عند الضغط على الإشعار سيتم تحويل المستخدم لهذا الرابط
-              </p>
+              
+              {/* اختيار صفحة من الموقع */}
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { name: 'الصفحة الرئيسية', url: '/' },
+                    { name: 'المفضلة', url: '/?tab=recent' },
+                    { name: 'القرآن الكريم', url: '/?tab=quran' },
+                    { name: 'المحطات الرواج', url: '/?tab=trending' },
+                    { name: 'حول التطبيق', url: '/about' },
+                    { name: 'اتصل بنا', url: '/contact' },
+                  ].map((page) => (
+                    <Button
+                      key={page.url}
+                      type="button"
+                      size="sm"
+                      variant={newBroadcast.url === page.url ? "default" : "outline"}
+                      onClick={() => setNewBroadcast(prev => ({ ...prev, url: page.url }))}
+                      className="text-xs"
+                    >
+                      {page.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* أو كتابة رابط مخصص */}
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص:</label>
+                <Input
+                  placeholder="مثال: /station/abc123 أو https://example.com"
+                  value={newBroadcast.url}
+                  onChange={(e) => setNewBroadcast(prev => ({ ...prev, url: e.target.value }))}
+                  className="h-12"
+                  dir="ltr"
+                />
+              </div>
+              
+              {newBroadcast.url && (
+                <p className="text-xs text-green-600">
+                  ✓ سيتم تحويل المستخدم إلى: {newBroadcast.url}
+                </p>
+              )}
             </div>
 
             {/* خيار صورة الإشعار */}
