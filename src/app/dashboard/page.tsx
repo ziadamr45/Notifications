@@ -74,7 +74,7 @@ export default function DashboardPage() {
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
 
   // حالة الإشعار الجديد
-  const [newBroadcast, setNewBroadcast] = useState({ title: '', message: '', icon: '' });
+  const [newBroadcast, setNewBroadcast] = useState({ title: '', message: '', icon: '', url: '' });
   const [useCustomIcon, setUseCustomIcon] = useState(false);
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -320,7 +320,7 @@ export default function DashboardPage() {
           toast.success(`تم إرسال الإشعار لـ ${result.sent} مستخدم من أصل ${result.total}!`);
         }
 
-        setNewBroadcast({ title: '', message: '', icon: '' });
+        setNewBroadcast({ title: '', message: '', icon: '', url: '' });
         setUseCustomIcon(false);
         setSelectedImagePreview(null);
         fetchStats();
@@ -642,6 +642,23 @@ export default function DashboardPage() {
               onChange={(e) => setNewBroadcast(prev => ({ ...prev, message: e.target.value }))}
               className="w-full h-24 p-4 rounded-xl border border-border resize-none focus:outline-none focus:ring-2 focus:ring-[#2D8B8B]"
             />
+            
+            {/* رابط التحويل */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                رابط التحويل (اختياري)
+              </label>
+              <Input
+                placeholder="مثال: /station/abc123 أو https://esma3radio.vercel.app/quran"
+                value={newBroadcast.url}
+                onChange={(e) => setNewBroadcast(prev => ({ ...prev, url: e.target.value }))}
+                className="h-12"
+                dir="ltr"
+              />
+              <p className="text-xs text-muted-foreground">
+                عند الضغط على الإشعار سيتم تحويل المستخدم لهذا الرابط
+              </p>
+            </div>
 
             {/* خيار صورة الإشعار */}
             <div className="border rounded-xl p-4 bg-muted/30">

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, message, icon } = body;
+    const { title, message, icon, url } = body;
 
     if (!title || !message) {
       return NextResponse.json({ error: 'العنوان والنص مطلوبان' }, { status: 400 });
@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
         title,
         message,
         icon: icon || undefined,
+        url: url || undefined,
       }),
     });
 
