@@ -152,7 +152,7 @@ export default function DashboardPage() {
     }
   }, [isClient]);
 
-  // معالجة رفع الصورة
+  // معالجة رفع الصورة - رفع على ImgBB للحصول على URL
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -167,32 +167,46 @@ export default function DashboardPage() {
       return;
     }
 
+    // عرض معاينة محلية
     const localPreview = URL.createObjectURL(file);
     setSelectedImagePreview(localPreview);
+    
+    toast.loading('جاري رفع الصورة...');
 
     try {
-      const compressedImage = await compressImage(file);
-      if (compressedImage) {
-        setNewBroadcast(prev => ({ ...prev, icon: compressedImage }));
-        toast.success('تم تحميل الصورة بنجاح');
-      } else {
+      // ضغط الصورة أولاً
+      const compressedBase64 = await compressImageForUpload(file);
+      
+      if (!compressedBase64) {
         toast.error('فشل في معالجة الصورة');
+        setSelectedImagePreview(null);
+        return;
+      }
+
+      // رفع على ImgBB
+      const uploadedUrl = await uploadToImgBB(compressedBase64);
+      
+      if (uploadedUrl) {
+        setNewBroadcast(prev => ({ ...prev, icon: uploadedUrl }));
+        toast.success('تم رفع الصورة بنجاح');
+      } else {
+        toast.error('فشل في رفع الصورة');
         setSelectedImagePreview(null);
       }
     } catch (error) {
-      console.error('Image processing error:', error);
-      toast.error('فشل في معالجة الصورة');
+      console.error('Image upload error:', error);
+      toast.error('فشل في رفع الصورة');
       setSelectedImagePreview(null);
     }
   };
 
-  // ضغط الصورة
-  const compressImage = (file: File): Promise<string | null> => {
+  // ضغط الصورة للرفع (حجم أكبر للجودة)
+  const compressImageForUpload = (file: File): Promise<string | null> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        // تصغير الحجم الأقصى 192x192 للإشعارات
-        const maxSize = 192;
+        // حجم مناسب للإشعارات 512x512
+        const maxSize = 512;
         let width = img.width;
         let height = img.height;
 
@@ -220,18 +234,12 @@ export default function DashboardPage() {
 
         ctx.drawImage(img, 0, 0, width, height);
         
-        // نبدأ بجودة 0.7 ونقلل لو لازم
-        let quality = 0.7;
-        let base64 = canvas.toDataURL('image/jpeg', quality);
+        // جودة عالية للرفع
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
         
-        // لو الصورة كبيرة، نقلل الجودة تدريجياً
-        while (base64.length > 3500 && quality > 0.1) {
-          quality -= 0.1;
-          base64 = canvas.toDataURL('image/jpeg', quality);
-        }
-
-        // نرجع الصورة المضغوطة (لو لسه كبيرة الباك اند هيتعامل معاها)
-        resolve(base64);
+        // نرجع الـ base64 بدون الـ prefix
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data || null);
       };
 
       img.onerror = () => {
@@ -249,6 +257,31 @@ export default function DashboardPage() {
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  // رفع الصورة على ImgBB عبر API
+  const uploadToImgBB = async (base64Data: string): Promise<string | null> => {
+    try {
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: base64Data }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.url) {
+        return result.url;
+      }
+      
+      console.error('Upload failed:', result.error);
+      return null;
+    } catch (error) {
+      console.error('ImgBB upload error:', error);
+      return null;
+    }
   };
 
   // حذف الصورة
