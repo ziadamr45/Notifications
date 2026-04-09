@@ -171,14 +171,14 @@ export default function DashboardPage() {
     const localPreview = URL.createObjectURL(file);
     setSelectedImagePreview(localPreview);
     
-    toast.loading('جاري رفع الصورة...');
+    const loadingToastId = toast.loading('جاري رفع الصورة...');
 
     try {
       // ضغط الصورة أولاً
       const compressedBase64 = await compressImageForUpload(file);
       
       if (!compressedBase64) {
-        toast.error('فشل في معالجة الصورة');
+        toast.error('فشل في معالجة الصورة', { id: loadingToastId });
         setSelectedImagePreview(null);
         return;
       }
@@ -188,14 +188,14 @@ export default function DashboardPage() {
       
       if (uploadedUrl) {
         setNewBroadcast(prev => ({ ...prev, icon: uploadedUrl }));
-        toast.success('تم رفع الصورة بنجاح');
+        toast.success('تم رفع الصورة بنجاح', { id: loadingToastId });
       } else {
-        toast.error('فشل في رفع الصورة');
+        toast.error('فشل في رفع الصورة', { id: loadingToastId });
         setSelectedImagePreview(null);
       }
     } catch (error) {
       console.error('Image upload error:', error);
-      toast.error('فشل في رفع الصورة');
+      toast.error('فشل في رفع الصورة', { id: loadingToastId });
       setSelectedImagePreview(null);
     }
   };
@@ -375,12 +375,15 @@ export default function DashboardPage() {
   };
 
   // إضافة إشعار مجدول
+  const [isAddingScheduled, setIsAddingScheduled] = useState(false);
+
   const handleAddScheduled = async () => {
     if (!newScheduled.title.trim() || !newScheduled.message.trim() || newScheduled.days.length === 0) {
       toast.error('يرجى ملء جميع الحقول واختيار يوم واحد على الأقل');
       return;
     }
 
+    setIsAddingScheduled(true);
     try {
       const response = await fetch('/api/scheduled', {
         method: 'POST',
@@ -391,7 +394,7 @@ export default function DashboardPage() {
       const result = await response.json();
 
       if (result.success) {
-        toast.success('تم إضافة الإشعار المجدول');
+        toast.success('تم إضافة الإشعار المجدول بنجاح ✅');
         setScheduledNotifications(prev => [...prev, result.notification]);
         setNewScheduled({
           id: '',
@@ -402,10 +405,13 @@ export default function DashboardPage() {
           enabled: true,
         });
       } else {
-        throw new Error(result.error || 'فشل في الإضافة');
+        toast.error(result.error || 'فشل في إضافة الإشعار');
       }
     } catch (error) {
-      toast.error('فشل في إضافة الإشعار: ' + String(error));
+      console.error('Add scheduled notification error:', error);
+      toast.error('حدث خطأ أثناء الإضافة. تأكد أن قاعدة البيانات متصلة.');
+    } finally {
+      setIsAddingScheduled(false);
     }
   };
 
@@ -1022,9 +1028,18 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
-                <Button onClick={handleAddScheduled} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  إضافة إشعار
+                <Button onClick={handleAddScheduled} disabled={isAddingScheduled} className="gap-2">
+                  {isAddingScheduled ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      جاري الإضافة...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      إضافة إشعار
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

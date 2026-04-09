@@ -67,8 +67,17 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Create scheduled notification error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // التحقق من أن الجدول موجود
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
+      return NextResponse.json({
+        error: 'جدول الإشعارات المجدولة غير موجود. يرجى تشغيل: npx prisma db push',
+      }, { status: 500 });
+    }
+    
     return NextResponse.json({
-      error: 'فشل في إنشاء الإشعار',
+      error: 'فشل في إنشاء الإشعار: ' + errorMessage,
     }, { status: 500 });
   }
 }
