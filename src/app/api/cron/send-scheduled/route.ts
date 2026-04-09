@@ -11,6 +11,9 @@ const TIMEZONE = 'Africa/Cairo';
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 2000;
 
+// الحد الأدنى بين كل إرسال لنفس الإشعار (بالملي ثانية) - 3 دقايق
+const MIN_SEND_INTERVAL_MS = 3 * 60 * 1000;
+
 // دالة مساعدة: تنفيذ عملية مع Retry
 async function withRetry<T>(
   operation: () => Promise<T>,
@@ -42,7 +45,7 @@ export async function GET(request: NextRequest) {
     // التحقق: إما من Vercel Cron header أو من External Cron Secret
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET || 'cron-secret-2024';
-    
+
     // قبول الطلبات من:
     // 1. Vercel Cron (x-vercel-cron header)
     // 2. External cron services (x-cron-secret header)
@@ -78,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     let sentCount = 0;
     let errorCount = 0;
-    const skipped = [];
+    let skippedCount = 0;
 
     for (const notification of notifications) {
       let days: number[];
@@ -102,6 +105,16 @@ export async function GET(request: NextRequest) {
 
       if (!isExactMatch && !isGracePeriod) continue;
 
+      // === منع التكرار: التحقق من آخر إرسال ===
+      if (notification.lastSentAt) {
+        const timeSinceLastSent = Date.now() - notification.lastSentAt.getTime();
+        if (timeSinceLastSent < MIN_SEND_INTERVAL_MS) {
+          console.log(`[Cron] SKIP (already sent ${Math.round(timeSinceLastSent / 1000)}s ago): "${notification.title}"`);
+          skippedCount++;
+          continue;
+        }
+      }
+
       // تسجيل إذا تم الإرسال في فترة السماح
       const sendMode = isExactMatch ? 'exact' : 'grace';
       if (!isExactMatch) {
@@ -111,6 +124,12 @@ export async function GET(request: NextRequest) {
       console.log(`[Cron] Sending [${sendMode}]: "${notification.title}" (scheduled: ${notification.time})`);
 
       try {
+        // تحديث lastSentAt قبل الإرسال (لمنع التكرار لو طلبتين اتعملوا بالتوازي)
+        await prisma.scheduledNotification.update({
+          where: { id: notification.id },
+          data: { lastSentAt: now },
+        });
+
         // إرسال الإشعار مع Retry لضمان الوصول
         const response = await withRetry(
           () => fetch(`${RADIO_API_URL}/api/notifications/broadcast`, {
@@ -151,21 +170,32 @@ export async function GET(request: NextRequest) {
           console.log(`[Cron] OK Sent "${notification.title}" to ${result.sent || 0} users [${sendMode}]`);
           sentCount++;
         } else {
+          // لو الإرسال فشل، ارجع lastSentAt لـ null عشان يحاول تاني الدقيقة الجاية
+          await prisma.scheduledNotification.update({
+            where: { id: notification.id },
+            data: { lastSentAt: null },
+          });
           console.error(`[Cron] FAIL Failed "${notification.title}":`, result.error);
           errorCount++;
         }
       } catch (sendError) {
+        // لو حصل error، ارجع lastSentAt لـ null عشان يحاول تاني
+        await prisma.scheduledNotification.update({
+          where: { id: notification.id },
+          data: { lastSentAt: null },
+        }).catch(() => {});
         console.error(`[Cron] FAIL Error "${notification.title}":`, sendError);
         errorCount++;
       }
     }
 
-    console.log(`[Cron] Done: sent=${sentCount}, errors=${errorCount}, checked=${notifications.length}`);
+    console.log(`[Cron] Done: sent=${sentCount}, errors=${errorCount}, skipped=${skippedCount}, checked=${notifications.length}`);
 
     return NextResponse.json({
       success: true,
       sent: sentCount,
       errors: errorCount,
+      skipped: skippedCount,
       checked: notifications.length,
       time: `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`,
       timezone: TIMEZONE,
