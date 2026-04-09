@@ -123,6 +123,7 @@ export async function GET(request: NextRequest) {
               title: notification.title,
               message: notification.message,
               icon: notification.icon || undefined,
+              url: notification.url || undefined,
             }),
           }),
           `send "${notification.title}"`

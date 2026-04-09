@@ -38,6 +38,7 @@ interface ScheduledNotification {
   days: number[];
   enabled: boolean;
   icon?: string;
+  url?: string;
 }
 
 interface UserData {
@@ -102,6 +103,7 @@ export default function DashboardPage() {
     days: [],
     enabled: true,
     icon: '',
+    url: '',
   });
 
   // حالة الصورة للإشعار المجدول
@@ -483,6 +485,7 @@ export default function DashboardPage() {
           days: [],
           enabled: true,
           icon: '',
+          url: '',
         });
         setScheduledUseCustomIcon(false);
         setScheduledImagePreview(null);
@@ -506,6 +509,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           title: notification.title,
           message: notification.message,
+          url: notification.url || undefined,
         }),
       });
 
@@ -1168,6 +1172,55 @@ export default function DashboardPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* رابط التحويل للإشعار المجدول */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    رابط التحويل (اختياري)
+                  </label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
+                        { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
+                        { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
+                        { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
+                        { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
+                        { name: 'شروط الاستخدام', url: 'https://esma3radio.vercel.app/terms' },
+                      ].map((page) => (
+                        <Button
+                          key={page.url}
+                          type="button"
+                          size="sm"
+                          variant={newScheduled.url === page.url ? "default" : "outline"}
+                          onClick={() => setNewScheduled(prev => ({ ...prev, url: page.url }))}
+                          className="text-xs"
+                        >
+                          {page.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص:</label>
+                    <Input
+                      placeholder="مثال: https://esma3radio.vercel.app/station/abc123"
+                      value={newScheduled.url}
+                      onChange={(e) => setNewScheduled(prev => ({ ...prev, url: e.target.value }))}
+                      className="h-10"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  {newScheduled.url && (
+                    <p className="text-xs text-green-600 break-all">
+                      ✓ سيتم تحويل المستخدم إلى: {newScheduled.url}
+                    </p>
+                  )}
                 </div>
 
                 {/* صورة الإشعار المجدول */}

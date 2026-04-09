@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, message, time, days, enabled, icon } = body;
+    const { title, message, time, days, enabled, icon, url } = body;
 
     if (!title || !message || !days || days.length === 0) {
       return NextResponse.json({ error: 'جميع الحقول مطلوبة' }, { status: 400 });
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         days: JSON.stringify(days),
         enabled: enabled ?? true,
         icon: icon || null,
+        url: url || null,
       },
     });
 
