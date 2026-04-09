@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       // تسجيل إذا تم الإرسال في فترة السماح
       const sendMode = isExactMatch ? 'exact' : 'grace';
       if (!isExactMatch) {
-        console.log(`[Cron] ⚠️ Grace period activated for "${notification.title}" (scheduled: ${notification.time}, current: ${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0)})`);
+        console.log(`[Cron] [!] Grace period activated for "${notification.title}" (scheduled: ${notification.time}, current: ${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')})`);
       }
 
       console.log(`[Cron] Sending [${sendMode}]: "${notification.title}" (scheduled: ${notification.time})`);
@@ -148,14 +148,14 @@ export async function GET(request: NextRequest) {
           } catch (logError) {
             console.error('[Cron] Failed to log:', logError);
           }
-          console.log(`[Cron] ✅ Sent "${notification.title}" to ${result.sent || 0} users [${sendMode}]`);
+          console.log(`[Cron] OK Sent "${notification.title}" to ${result.sent || 0} users [${sendMode}]`);
           sentCount++;
         } else {
-          console.error(`[Cron] ❌ Failed "${notification.title}":`, result.error);
+          console.error(`[Cron] FAIL Failed "${notification.title}":`, result.error);
           errorCount++;
         }
       } catch (sendError) {
-        console.error(`[Cron] ❌ Error "${notification.title}":`, sendError);
+        console.error(`[Cron] FAIL Error "${notification.title}":`, sendError);
         errorCount++;
       }
     }
