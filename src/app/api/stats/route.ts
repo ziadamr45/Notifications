@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       stats: {
-        totalUsers: 0,
-        totalSubscribers: 0,
+        namedUsers: { total: 0, today: 0, thisWeek: 0, lastWeek: 0 },
+        visitors: { total: 0, today: 0, thisWeek: 0, lastWeek: 0 },
+        subscribers: { total: 0, today: 0, thisWeek: 0, lastWeek: 0 },
         onlineUsers: 0,
         activeLastHour: 0,
-        activeLastDay: 0,
         notificationsSentToday: 0,
       },
     });
@@ -43,11 +43,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       stats: {
-        totalUsers: 0,
-        totalSubscribers: 0,
+        namedUsers: { total: 0, today: 0, thisWeek: 0, lastWeek: 0 },
+        visitors: { total: 0, today: 0, thisWeek: 0, lastWeek: 0 },
+        subscribers: { total: 0, today: 0, thisWeek: 0, lastWeek: 0 },
         onlineUsers: 0,
         activeLastHour: 0,
-        activeLastDay: 0,
         notificationsSentToday: 0,
       },
     });

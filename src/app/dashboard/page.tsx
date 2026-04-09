@@ -22,6 +22,10 @@ import {
   Activity,
   Image as ImageIcon,
   Calendar,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Bell,
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -45,12 +49,19 @@ interface UserData {
   isNew?: boolean;
 }
 
+interface StatBreakdown {
+  total: number;
+  today: number;
+  thisWeek: number;
+  lastWeek: number;
+}
+
 interface Stats {
-  totalUsers: number;
-  totalSubscribers: number;
+  namedUsers: StatBreakdown;
+  visitors: StatBreakdown;
+  subscribers: StatBreakdown;
   onlineUsers: number;
   activeLastHour: number;
-  activeLastDay: number;
   notificationsSentToday: number;
 }
 
@@ -70,6 +81,9 @@ export default function DashboardPage() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [showUserList, setShowUserList] = useState(false);
+
+  // حالة البطاقة المفتوحة في الإحصائيات
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   // حالة الإشعارات المجدولة
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
@@ -617,69 +631,128 @@ export default function DashboardPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* إحصائيات */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#2D8B8B]/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-[#2D8B8B]" />
+        {/* إحصائيات - 3 بطاقات رئيسية */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* بطاقة المستخدمين */}
+          <Card className="cursor-pointer transition-all hover:shadow-md" onClick={() => setExpandedCard(expandedCard === 'users' ? null : 'users')}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-[#2D8B8B]/10 flex items-center justify-center">
+                    <Users className="h-6 w-6 text-[#2D8B8B]" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">إجمالي المستخدمين</p>
+                    <p className="text-2xl font-bold">
+                      {isLoadingStats ? '...' : (stats?.namedUsers?.total || 0)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">إجمالي المشتركين</p>
-                  <p className="text-xl font-bold">
-                    {isLoadingStats ? '...' : stats?.totalSubscribers || 0}
-                  </p>
+                <div className="text-muted-foreground">
+                  {expandedCard === 'users' ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                 </div>
               </div>
+              {expandedCard === 'users' && stats?.namedUsers && (
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  <p className="text-xs text-muted-foreground mb-2">المستخدمين اللي كتبوا اسمهم وعملوا حساب على الموقع</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">اليوم</p>
+                      <p className="text-lg font-bold text-green-600">{stats.namedUsers.today}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">هذا الأسبوع</p>
+                      <p className="text-lg font-bold text-blue-600">{stats.namedUsers.thisWeek}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">الأسبوع الماضي</p>
+                      <p className="text-lg font-bold text-gray-600">{stats.namedUsers.lastWeek}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-green-500" />
+
+          {/* بطاقة المتصفحين */}
+          <Card className="cursor-pointer transition-all hover:shadow-md" onClick={() => setExpandedCard(expandedCard === 'visitors' ? null : 'visitors')}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <Eye className="h-6 w-6 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">إجمالي المتصفحين</p>
+                    <p className="text-2xl font-bold">
+                      {isLoadingStats ? '...' : (stats?.visitors?.total || 0)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">متصلين الآن</p>
-                  <p className="text-xl font-bold text-green-600">
-                    {isLoadingStats ? '...' : stats?.onlineUsers || 0}
-                  </p>
+                <div className="text-muted-foreground">
+                  {expandedCard === 'visitors' ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                 </div>
               </div>
+              {expandedCard === 'visitors' && stats?.visitors && (
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  <p className="text-xs text-muted-foreground mb-2">الزوار اللي دخلوا الموقع بس ما عملوش حساب (ما حطوش اسم)</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">اليوم</p>
+                      <p className="text-lg font-bold text-green-600">{stats.visitors.today}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">هذا الأسبوع</p>
+                      <p className="text-lg font-bold text-blue-600">{stats.visitors.thisWeek}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">الأسبوع الماضي</p>
+                      <p className="text-lg font-bold text-gray-600">{stats.visitors.lastWeek}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-blue-500" />
+
+          {/* بطاقة المشتركين بالإشعارات */}
+          <Card className="cursor-pointer transition-all hover:shadow-md" onClick={() => setExpandedCard(expandedCard === 'subscribers' ? null : 'subscribers')}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                    <Bell className="h-6 w-6 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">إجمالي المشتركين بالإشعارات</p>
+                    <p className="text-2xl font-bold">
+                      {isLoadingStats ? '...' : (stats?.subscribers?.total || 0)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">نشطين آخر ساعة</p>
-                  <p className="text-xl font-bold">
-                    {isLoadingStats ? '...' : stats?.activeLastHour || 0}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                  <Send className="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">مرسلة اليوم</p>
-                  <p className="text-xl font-bold">
-                    {isLoadingStats ? '...' : stats?.notificationsSentToday || 0}
-                  </p>
+                <div className="text-muted-foreground">
+                  {expandedCard === 'subscribers' ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                 </div>
               </div>
+              {expandedCard === 'subscribers' && stats?.subscribers && (
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  <p className="text-xs text-muted-foreground mb-2">الناس اللي فعلوا الإشعارات في الموقع</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">اليوم</p>
+                      <p className="text-lg font-bold text-green-600">{stats.subscribers.today}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">هذا الأسبوع</p>
+                      <p className="text-lg font-bold text-blue-600">{stats.subscribers.thisWeek}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-muted-foreground">الأسبوع الماضي</p>
+                      <p className="text-lg font-bold text-gray-600">{stats.subscribers.lastWeek}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
