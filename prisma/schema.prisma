@@ -17,6 +17,7 @@ model ScheduledNotification {
   message   String
   time      String   // HH:mm format
   days      String   // JSON array of day numbers [0,1,2,3,4,5,6]
+  icon      String?  // صورة مخصصة للإشعار (URL)
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

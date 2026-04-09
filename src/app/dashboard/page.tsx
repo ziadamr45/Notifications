@@ -33,6 +33,7 @@ interface ScheduledNotification {
   time: string;
   days: number[];
   enabled: boolean;
+  icon?: string;
 }
 
 interface UserData {
@@ -86,7 +87,12 @@ export default function DashboardPage() {
     time: '12:00',
     days: [],
     enabled: true,
+    icon: '',
   });
+
+  // حالة الصورة للإشعار المجدول
+  const [scheduledUseCustomIcon, setScheduledUseCustomIcon] = useState(false);
+  const [scheduledImagePreview, setScheduledImagePreview] = useState<string | null>(null);
 
   // تشغيل الإشعارات المجدولة (fallback) لما الأدمن يفتح الداشبورد
   const triggerScheduledCron = async () => {
@@ -300,6 +306,55 @@ export default function DashboardPage() {
     setSelectedImagePreview(null);
   };
 
+  // رفع صورة للإشعار المجدول
+  const handleScheduledImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('يرجى اختيار ملف صورة');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('حجم الصورة يجب أن يكون أقل من 2MB');
+      return;
+    }
+
+    const localPreview = URL.createObjectURL(file);
+    setScheduledImagePreview(localPreview);
+    const loadingToastId = toast.loading('جاري رفع الصورة...');
+
+    try {
+      const compressedBase64 = await compressImageForUpload(file);
+      if (!compressedBase64) {
+        toast.error('فشل في معالجة الصورة', { id: loadingToastId });
+        setScheduledImagePreview(null);
+        return;
+      }
+
+      const uploadedUrl = await uploadToImgBB(compressedBase64);
+      if (uploadedUrl) {
+        setNewScheduled(prev => ({ ...prev, icon: uploadedUrl }));
+        toast.success('تم رفع الصورة بنجاح', { id: loadingToastId });
+      } else {
+        toast.error('فشل في رفع الصورة', { id: loadingToastId });
+        setScheduledImagePreview(null);
+      }
+    } catch (error) {
+      console.error('Scheduled image upload error:', error);
+      toast.error('فشل في رفع الصورة', { id: loadingToastId });
+      setScheduledImagePreview(null);
+    }
+  };
+
+  // حذف صورة الإشعار المجدول
+  const handleRemoveScheduledImage = () => {
+    setNewScheduled(prev => ({ ...prev, icon: '' }));
+    setScheduledImagePreview(null);
+    setScheduledUseCustomIcon(false);
+  };
+
   const handleLogout = () => {
     clearAuthSession();
     toast.success('تم تسجيل الخروج');
@@ -413,7 +468,10 @@ export default function DashboardPage() {
           time: '12:00',
           days: [],
           enabled: true,
+          icon: '',
         });
+        setScheduledUseCustomIcon(false);
+        setScheduledImagePreview(null);
       } else {
         toast.error(result.error || 'فشل في إضافة الإشعار');
       }
@@ -1038,6 +1096,106 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* صورة الإشعار المجدول */}
+                <div className="border rounded-xl p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-3">
+                    <ImageIcon className="h-5 w-5 text-[#2D8B8B]" />
+                    <span className="font-medium">صورة الإشعار (اختياري)</span>
+                  </div>
+
+                  <div className="flex gap-2 mb-3">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={!scheduledUseCustomIcon ? "default" : "outline"}
+                      onClick={() => {
+                        setScheduledUseCustomIcon(false);
+                        handleRemoveScheduledImage();
+                      }}
+                    >
+                      <Radio className="h-4 w-4 me-1" />
+                      اللوجو الافتراضي
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={scheduledUseCustomIcon ? "default" : "outline"}
+                      onClick={() => setScheduledUseCustomIcon(true)}
+                    >
+                      <ImageIcon className="h-4 w-4 me-1" />
+                      صورة مخصصة
+                    </Button>
+                  </div>
+
+                  {scheduledUseCustomIcon && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleScheduledImageUpload}
+                          className="hidden"
+                          id="scheduled-image-upload"
+                        />
+                        <label
+                          htmlFor="scheduled-image-upload"
+                          className="flex items-center gap-2 px-4 py-2 bg-[#2D8B8B] text-white rounded-lg cursor-pointer hover:bg-[#237575] transition-colors"
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                          اختر صورة من الجهاز
+                        </label>
+                        {scheduledImagePreview && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleRemoveScheduledImage}
+                            className="text-red-500 border-red-300 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 me-1" />
+                            حذف
+                          </Button>
+                        )}
+                      </div>
+
+                      {scheduledImagePreview ? (
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={scheduledImagePreview}
+                            alt="معاينة"
+                            className="w-20 h-20 rounded-lg object-cover border"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-green-600">✓ تم اختيار الصورة</p>
+                            <p className="text-xs text-muted-foreground">ستظهر مع الإشعار المجدول</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center p-4 border-2 border-dashed border-muted rounded-lg">
+                          <div className="text-center">
+                            <ImageIcon className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                            <p className="text-sm text-muted-foreground">PNG, JPG (أقصى 2MB)</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!scheduledUseCustomIcon && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-[#2D8B8B] flex items-center justify-center">
+                        <Radio className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">لوجو اسمع راديو</p>
+                        <p className="text-xs text-muted-foreground">اللوجو الافتراضي</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <Button onClick={handleAddScheduled} disabled={isAddingScheduled} className="gap-2">
                   {isAddingScheduled ? (
                     <>

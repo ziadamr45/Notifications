@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
           body: JSON.stringify({
             title: notification.title,
             message: notification.message,
+            icon: notification.icon || undefined,
           }),
         });
 
