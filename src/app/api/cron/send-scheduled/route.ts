@@ -57,12 +57,8 @@ export async function GET(request: NextRequest) {
 
       const [scheduledHour, scheduledMinute] = notification.time.split(':').map(Number);
 
-      // التحقق: الإشعار لازم يكون وقته في آخر 60 دقيقة
-      const scheduledMinutesFromMidnight = scheduledHour * 60 + scheduledMinute;
-      const currentMinutesFromMidnight = currentHour * 60 + currentMinute;
-
-      const minutesDiff = currentMinutesFromMidnight - scheduledMinutesFromMidnight;
-      if (minutesDiff < 0 || minutesDiff > 60) continue;
+      // التحقق: مطابقة الدقيقة بالظبط ( cron-job.org بيشتغل كل دقيقة)
+      if (scheduledHour !== currentHour || scheduledMinute !== currentMinute) continue;
 
       console.log(`[Cron] Sending: "${notification.title}" (scheduled: ${notification.time})`);
 
