@@ -48,8 +48,18 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // التحقق من أن الوقت مطابق (بدقة دقيقة)
-      if (notification.time !== currentTime) continue;
+      // التحقق من أن الوقت مطابق (بدقة دقيقة) - ينفذ كل الإشعارات في أول 3 دقائق من كل ساعة
+      // لأن Vercel Hobby بيشتغل كل ساعة بس
+      const currentMinute = egyptDate.getMinutes();
+      const scheduledMinute = parseInt(notification.time.split(':')[1], 10);
+      const currentHour = egyptDate.getHours();
+      const scheduledHour = parseInt(notification.time.split(':')[0], 10);
+
+      // المباراة: الساعة لازم تكون نفسها، والدقيقة في نطاق 0-2 من كل ساعة
+      // والإشعار المجدول بيكون بأي دقيقة فهنشغله في أول 3 دقائق
+      if (currentHour !== scheduledHour) continue;
+      if (currentMinute > 2 && scheduledMinute > 2) continue;
+      if (scheduledMinute > 2 && currentMinute <= 2) continue;
 
       // التحقق من أن اليوم الحالي من الأيام المحددة
       if (!days.includes(currentDay)) continue;
