@@ -14,15 +14,18 @@ export async function GET(request: NextRequest) {
     const cronSecret = process.env.CRON_SECRET || 'cron-secret-2024';
     
     // قبول الطلبات من:
-    // 1. Vercel Cron (Authorization: Bearer <secret>)
-    // 2. External cron services (query param ?secret=<secret>)
-    // 3. Vercel internal cron (x-vercel-cron header)
+    // 1. Vercel Cron (x-vercel-cron header)
+    // 2. External cron services (x-cron-secret header)
+    // 3. Authorization Bearer token
+    // 4. Query param ?secret=<secret> (fallback)
     const isVercelCron = request.headers.get('x-vercel-cron') === '1';
-    const querySecret = new URL(request.url).searchParams.get('secret');
+    const cronSecretHeader = request.headers.get('x-cron-secret');
     const isValidAuth = authHeader === `Bearer ${cronSecret}`;
+    const isValidCronHeader = cronSecretHeader === cronSecret;
+    const querySecret = new URL(request.url).searchParams.get('secret');
     const isValidQuerySecret = querySecret === cronSecret;
 
-    if (!isVercelCron && !isValidAuth && !isValidQuerySecret) {
+    if (!isVercelCron && !isValidAuth && !isValidCronHeader && !isValidQuerySecret) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
