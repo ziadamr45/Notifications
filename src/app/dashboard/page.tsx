@@ -88,6 +88,15 @@ export default function DashboardPage() {
     enabled: true,
   });
 
+  // تشغيل الإشعارات المجدولة (fallback) لما الأدمن يفتح الداشبورد
+  const triggerScheduledCron = async () => {
+    try {
+      await fetch('/api/cron/send-scheduled?secret=cron-secret-2024', { method: 'GET' });
+    } catch {
+      // silent - مش مهم يظهر خطأ
+    }
+  };
+
   // التحقق من تسجيل الدخول
   useEffect(() => {
     setIsClient(true);
@@ -96,6 +105,7 @@ export default function DashboardPage() {
     } else {
       fetchStats();
       fetchScheduledNotifications();
+      triggerScheduledCron(); // تشغيل الـ cron كـ fallback
     }
   }, [router]);
 

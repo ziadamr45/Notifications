@@ -4,17 +4,28 @@ import { prisma, ADMIN_API_KEY } from '@/lib/db';
 // رابط API مشروع الراديو
 const RADIO_API_URL = process.env.RADIO_API_URL || 'https://esma3radio.vercel.app';
 
-// التوقيت: Africa/Cairo (UTC+2 أو UTC+3 حسب التوقيت الصيفي)
+// التوقيت: Africa/Cairo
 const TIMEZONE = 'Africa/Cairo';
 
 export async function GET(request: NextRequest) {
-  // التحقق من أن الطلب من Vercel Cron
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET || 'cron-secret-2024'}`) {
-    return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
-  }
-
   try {
+    // التحقق: إما من Vercel Cron header أو من External Cron Secret
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET || 'cron-secret-2024';
+    
+    // قبول الطلبات من:
+    // 1. Vercel Cron (Authorization: Bearer <secret>)
+    // 2. External cron services (query param ?secret=<secret>)
+    // 3. Vercel internal cron (x-vercel-cron header)
+    const isVercelCron = request.headers.get('x-vercel-cron') === '1';
+    const querySecret = new URL(request.url).searchParams.get('secret');
+    const isValidAuth = authHeader === `Bearer ${cronSecret}`;
+    const isValidQuerySecret = querySecret === cronSecret;
+
+    if (!isVercelCron && !isValidAuth && !isValidQuerySecret) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
+    }
+
     const now = new Date();
     const egyptTimeStr = now.toLocaleString('en-US', { timeZone: TIMEZONE });
     const egyptDate = new Date(egyptTimeStr);
@@ -46,15 +57,14 @@ export async function GET(request: NextRequest) {
 
       const [scheduledHour, scheduledMinute] = notification.time.split(':').map(Number);
 
-      // التحقق: الإشعار لازم يكون وقتها في آخر 60 دقيقة
+      // التحقق: الإشعار لازم يكون وقته في آخر 60 دقيقة
       const scheduledMinutesFromMidnight = scheduledHour * 60 + scheduledMinute;
       const currentMinutesFromMidnight = currentHour * 60 + currentMinute;
 
-      // لو الوقت فات من ساعة لحد آخر ساعة (يعني المفروض يكون اتبعت)
       const minutesDiff = currentMinutesFromMidnight - scheduledMinutesFromMidnight;
       if (minutesDiff < 0 || minutesDiff > 60) continue;
 
-      console.log(`[Cron] Sending: "${notification.title}" (scheduled: ${notification.time}, current: ${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')})`);
+      console.log(`[Cron] Sending: "${notification.title}" (scheduled: ${notification.time})`);
 
       try {
         const response = await fetch(`${RADIO_API_URL}/api/notifications/broadcast`, {
