@@ -396,7 +396,15 @@ export default function DashboardPage() {
 
       if (response.ok && result.success) {
         if (result.failed > 0) {
-          toast.warning(`تم إرسال ${result.sent} من أصل ${result.total} - فشل في ${result.failed} اشتراك`);
+          const staleInfo = result.details?.staleCleaned > 0 
+            ? ` (تم تنظيف ${result.details.staleCleaned} اشتراك منتهي)` 
+            : '';
+          toast.warning(`تم إرسال ${result.sent} من أصل ${result.total} - فشل في ${result.failed} اشتراك${staleInfo}`, {
+            duration: 6000,
+            description: result.details?.failureReasons?.length > 0 
+              ? result.details.failureReasons.slice(0, 3).join('\n') 
+              : undefined,
+          });
         } else {
           toast.success(`تم إرسال الإشعار لـ ${result.sent} مستخدم من أصل ${result.total}!`);
         }
