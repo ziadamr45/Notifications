@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkServerAuth, ADMIN_API_KEY } from '@/lib/auth';
 
 // رابط API مشروع الراديو
-const RADIO_API_URL = process.env.RADIO_API_URL || 'https://asmae-radio.vercel.app';
+const RADIO_API_URL = process.env.RADIO_API_URL || 'https://esma3radio.vercel.app';
 
 // نوع بيانات المشترك
 interface SubscriberData {

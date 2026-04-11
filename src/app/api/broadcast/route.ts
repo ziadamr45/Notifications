@@ -3,7 +3,7 @@ import { checkServerAuth, ADMIN_API_KEY } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // رابط API مشروع الراديو
-const RADIO_API_URL = process.env.RADIO_API_URL || 'https://asmae-radio.vercel.app';
+const RADIO_API_URL = process.env.RADIO_API_URL || 'https://esma3radio.vercel.app';
 
 export async function POST(request: NextRequest) {
   // التحقق من المصادقة

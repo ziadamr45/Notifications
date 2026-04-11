@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkServerAuth, ADMIN_API_KEY } from '@/lib/auth';
 
-const RADIO_API_URL = process.env.RADIO_API_URL || 'https://asmae-radio.vercel.app';
+const RADIO_API_URL = process.env.RADIO_API_URL || 'https://esma3radio.vercel.app';
 
 export async function GET(request: NextRequest) {
   const cookieHeader = request.headers.get('cookie');
