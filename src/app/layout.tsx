@@ -43,6 +43,20 @@ export default function RootLayout({
       dir="rtl"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* أمان عالي */}
+        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+        <meta httpEquiv="X-Frame-Options" content="DENY" />
+        <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
+        <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+        <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+        {/* منع حفظ الصفحة في الكاش */}
+        <meta httpEquiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
+        {/* Content Security Policy */}
+        <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://esma3radio.vercel.app https://api.imgbb.com https://*.push.apple.com https://*.googleapis.com https://fcm.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

@@ -347,6 +347,38 @@ export default function DashboardPage() {
     }
   }, [router]);
 
+  // مراقبة الجلسة - التحقق كل ثانية إن الجلسة لسه فعالة
+  useEffect(() => {
+    if (!isClient) return;
+    const interval = setInterval(() => {
+      if (!isAuthenticated()) {
+        toast.error('انتهت صلاحية الجلسة');
+        router.push('/');
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isClient, router]);
+
+  // مسح الجلسة عند إغلاق التاب أو الخروج من الموقع
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      clearAuthSession();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // منع الرجوع بالكوكيز (back-forward cache)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !isAuthenticated()) {
+        router.push('/');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [router]);
+
   // جلب الإحصائيات
   const fetchStats = async () => {
     setIsLoadingStats(true);
