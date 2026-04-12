@@ -12,15 +12,22 @@ export async function GET(request: NextRequest) {
   try {
     const response = await fetch(`${RADIO_API_URL}/api/admin/analytics`, {
       headers: { 'x-admin-api-key': ADMIN_API_KEY },
+      signal: AbortSignal.timeout(30000),
     });
 
     if (response.ok) {
       const data = await response.json();
-      return NextResponse.json({ success: true, analytics: data.analytics });
+      if (data.success && data.analytics) {
+        return NextResponse.json({ success: true, analytics: data.analytics });
+      }
+      return NextResponse.json({ success: false, error: data.error || 'فشل في جلب التحليلات من الخادم' });
     }
 
-    return NextResponse.json({ success: false, error: 'فشل في جلب التحليلات' }, { status: 502 });
-  } catch {
-    return NextResponse.json({ success: false, error: 'خطأ في الاتصال بخادم الراديو' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'خادم الراديو لم يستجب (HTTP ' + response.status + ')' });
+  } catch (err) {
+    const message = err instanceof Error && err.name === 'TimeoutError'
+      ? 'انتهت مهلة الاتصال بخادم الراديو'
+      : 'خطأ في الاتصال بخادم الراديو';
+    return NextResponse.json({ success: false, error: message });
   }
 }

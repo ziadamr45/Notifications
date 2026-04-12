@@ -241,6 +241,23 @@ function SkeletonTable({ rows = 5 }: { rows?: number }) {
   );
 }
 
+// مكون رسالة الخطأ مع زر إعادة المحاولة
+function AnalyticsErrorCard({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <Card>
+      <CardContent className="py-12 text-center">
+        <AlertCircle className="h-12 w-12 mx-auto mb-3 text-destructive opacity-80" />
+        <p className="text-muted-foreground mb-1 text-sm">لا تتوفر بيانات حالياً</p>
+        <p className="text-destructive text-xs mb-4 max-w-md mx-auto">{message}</p>
+        <Button variant="outline" size="sm" onClick={onRetry} className="gap-2 mx-auto">
+          <RefreshCw className="h-4 w-4" />
+          إعادة المحاولة
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
@@ -288,6 +305,7 @@ export default function DashboardPage() {
   // حالة الأناليتكس - تحميل كسول
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [loadedTabs, setLoadedTabs] = useState<Set<TabId>>(new Set());
 
   // تشغيل الإشعارات المجدولة (fallback) لما الأدمن يفتح الداشبورد
@@ -360,15 +378,19 @@ export default function DashboardPage() {
   const fetchAnalytics = useCallback(async () => {
     if (loadedTabs.has(activeTab)) return;
     setIsLoadingAnalytics(true);
+    setAnalyticsError(null);
     try {
       const response = await fetch('/api/analytics');
       const data = await response.json();
       if (data.success) {
         setAnalytics(data.analytics);
         setLoadedTabs(prev => new Set(prev).add(activeTab));
+      } else {
+        setAnalyticsError(data.error || 'فشل في جلب التحليلات');
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      setAnalyticsError('حدث خطأ أثناء جلب التحليلات');
     } finally {
       setIsLoadingAnalytics(false);
     }
@@ -1539,12 +1561,17 @@ export default function DashboardPage() {
 
     if (!analytics) {
       return (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>لا تتوفر بيانات تحليلات الإشعارات حالياً</p>
-          </CardContent>
-        </Card>
+        <AnalyticsErrorCard
+          message={analyticsError || 'جاري التحميل...'}
+          onRetry={() => {
+            setLoadedTabs(prev => {
+              const next = new Set(prev);
+              next.delete('notifications');
+              return next;
+            });
+            fetchAnalytics();
+          }}
+        />
       );
     }
 
@@ -1857,12 +1884,17 @@ export default function DashboardPage() {
 
     if (!analytics) {
       return (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <Headphones className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>لا تتوفر بيانات تحليلات الاستماع حالياً</p>
-          </CardContent>
-        </Card>
+        <AnalyticsErrorCard
+          message={analyticsError || 'جاري التحميل...'}
+          onRetry={() => {
+            setLoadedTabs(prev => {
+              const next = new Set(prev);
+              next.delete('listening');
+              return next;
+            });
+            fetchAnalytics();
+          }}
+        />
       );
     }
 
@@ -2148,12 +2180,17 @@ export default function DashboardPage() {
 
     if (!analytics) {
       return (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>لا تتوفر بيانات المستخدمين حالياً</p>
-          </CardContent>
-        </Card>
+        <AnalyticsErrorCard
+          message={analyticsError || 'جاري التحميل...'}
+          onRetry={() => {
+            setLoadedTabs(prev => {
+              const next = new Set(prev);
+              next.delete('users');
+              return next;
+            });
+            fetchAnalytics();
+          }}
+        />
       );
     }
 
@@ -2396,12 +2433,17 @@ export default function DashboardPage() {
 
     if (!analytics) {
       return (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <Monitor className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>لا تتوفر بيانات الأجهزة حالياً</p>
-          </CardContent>
-        </Card>
+        <AnalyticsErrorCard
+          message={analyticsError || 'جاري التحميل...'}
+          onRetry={() => {
+            setLoadedTabs(prev => {
+              const next = new Set(prev);
+              next.delete('devices');
+              return next;
+            });
+            fetchAnalytics();
+          }}
+        />
       );
     }
 
