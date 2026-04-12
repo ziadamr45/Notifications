@@ -181,7 +181,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground mt-6">
-          © {new Date().getFullYear()} اسمع راديو - جميع الحقوق محفوظة
+          © {new Date().getFullYear()} اسمع راديو - جميع الحقوق محفوظة | Ziad Amr
         </p>
       </div>
     </div>
