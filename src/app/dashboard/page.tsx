@@ -44,6 +44,7 @@ import {
   CalendarDays,
   LayoutDashboard,
   PieChart,
+  Pencil,
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -301,6 +302,22 @@ export default function DashboardPage() {
   // حالة الصورة للإشعار المجدول
   const [scheduledUseCustomIcon, setScheduledUseCustomIcon] = useState(false);
   const [scheduledImagePreview, setScheduledImagePreview] = useState<string | null>(null);
+
+  // حالة تعديل إشعار مجدول
+  const [editingNotification, setEditingNotification] = useState<ScheduledNotification | null>(null);
+  const [editScheduled, setEditScheduled] = useState<ScheduledNotification>({
+    id: '',
+    title: '',
+    message: '',
+    time: '12:00',
+    days: [],
+    enabled: true,
+    icon: '',
+    url: '',
+  });
+  const [editScheduledUseCustomIcon, setEditScheduledUseCustomIcon] = useState(false);
+  const [editScheduledImagePreview, setEditScheduledImagePreview] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // حالة الأناليتكس - تحميل كسول
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -596,6 +613,155 @@ export default function DashboardPage() {
     setNewScheduled(prev => ({ ...prev, icon: '' }));
     setScheduledImagePreview(null);
     setScheduledUseCustomIcon(false);
+  };
+
+  // تعديل إشعار مجدول - فتح نافذة التعديل
+  const handleEditScheduled = (notification: ScheduledNotification) => {
+    setEditingNotification(notification);
+    setEditScheduled({
+      id: notification.id,
+      title: notification.title,
+      message: notification.message,
+      time: notification.time,
+      days: [...notification.days],
+      enabled: notification.enabled,
+      icon: notification.icon || '',
+      url: notification.url || '',
+    });
+    if (notification.icon) {
+      setEditScheduledUseCustomIcon(true);
+      setEditScheduledImagePreview(notification.icon);
+    } else {
+      setEditScheduledUseCustomIcon(false);
+      setEditScheduledImagePreview(null);
+    }
+  };
+
+  // حفظ تعديل إشعار مجدول
+  const handleSaveEdit = async () => {
+    if (!editingNotification) return;
+    if (!editScheduled.title.trim() || !editScheduled.message.trim() || editScheduled.days.length === 0) {
+      toast.error('يرجى ملء جميع الحقول واختيار يوم واحد على الأقل');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const response = await fetch('/api/scheduled', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingNotification.id,
+          title: editScheduled.title,
+          message: editScheduled.message,
+          time: editScheduled.time,
+          days: editScheduled.days,
+          icon: editScheduled.icon,
+          url: editScheduled.url,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setScheduledNotifications(prev =>
+          prev.map(n => n.id === editingNotification.id ? {
+            ...n,
+            title: editScheduled.title,
+            message: editScheduled.message,
+            time: editScheduled.time,
+            days: editScheduled.days,
+            icon: editScheduled.icon,
+            url: editScheduled.url,
+          } : n)
+        );
+        toast.success('تم تحديث الإشعار المجدول بنجاح ✅');
+        handleCancelEdit();
+      } else {
+        toast.error(result.error || 'فشل في تحديث الإشعار');
+      }
+    } catch (error) {
+      console.error('Update scheduled notification error:', error);
+      toast.error('حدث خطأ أثناء التحديث');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  // إلغاء التعديل
+  const handleCancelEdit = () => {
+    setEditingNotification(null);
+    setEditScheduled({
+      id: '',
+      title: '',
+      message: '',
+      time: '12:00',
+      days: [],
+      enabled: true,
+      icon: '',
+      url: '',
+    });
+    setEditScheduledUseCustomIcon(false);
+    setEditScheduledImagePreview(null);
+  };
+
+  // رفع صورة لتعديل الإشعار المجدول
+  const handleEditScheduledImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('يرجى اختيار ملف صورة');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('حجم الصورة يجب أن يكون أقل من 2MB');
+      return;
+    }
+
+    const localPreview = URL.createObjectURL(file);
+    setEditScheduledImagePreview(localPreview);
+    const loadingToastId = toast.loading('جاري رفع الصورة...');
+
+    try {
+      const compressedBase64 = await compressImageForUpload(file);
+      if (!compressedBase64) {
+        toast.error('فشل في معالجة الصورة', { id: loadingToastId });
+        setEditScheduledImagePreview(null);
+        return;
+      }
+
+      const uploadedUrl = await uploadToImgBB(compressedBase64);
+      if (uploadedUrl) {
+        setEditScheduled(prev => ({ ...prev, icon: uploadedUrl }));
+        toast.success('تم رفع الصورة بنجاح', { id: loadingToastId });
+      } else {
+        toast.error('فشل في رفع الصورة', { id: loadingToastId });
+        setEditScheduledImagePreview(null);
+      }
+    } catch (error) {
+      console.error('Edit scheduled image upload error:', error);
+      toast.error('فشل في رفع الصورة', { id: loadingToastId });
+      setEditScheduledImagePreview(null);
+    }
+  };
+
+  // حذف صورة تعديل الإشعار المجدول
+  const handleEditRemoveScheduledImage = () => {
+    setEditScheduled(prev => ({ ...prev, icon: '' }));
+    setEditScheduledImagePreview(null);
+    setEditScheduledUseCustomIcon(false);
+  };
+
+  // تبديل يوم في التعديل
+  const toggleEditDay = (day: number) => {
+    setEditScheduled(prev => ({
+      ...prev,
+      days: prev.days.includes(day)
+        ? prev.days.filter(d => d !== day)
+        : [...prev.days, day],
+    }));
   };
 
   const handleLogout = () => {
@@ -971,574 +1137,6 @@ export default function DashboardPage() {
           تحديث الآن
         </Button>
       </div>
-
-      {/* إرسال إشعار */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Send className="h-5 w-5 text-[#2D8B8B]" />
-            إرسال إشعار
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            placeholder="عنوان الإشعار"
-            value={newBroadcast.title}
-            onChange={(e) => setNewBroadcast(prev => ({ ...prev, title: e.target.value }))}
-            className="h-12"
-          />
-          <textarea
-            placeholder="نص الإشعار"
-            value={newBroadcast.message}
-            onChange={(e) => setNewBroadcast(prev => ({ ...prev, message: e.target.value }))}
-            className="w-full h-24 p-4 rounded-xl border border-border resize-none focus:outline-none focus:ring-2 focus:ring-[#2D8B8B]"
-          />
-
-          {/* رابط التحويل */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-muted-foreground">
-              رابط التحويل (اختياري)
-            </label>
-
-            {/* اختيار صفحة من الموقع */}
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
-                  { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
-                  { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
-                  { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
-                  { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
-                  { name: 'شروط الاستخدام', url: 'https://esma3radio.vercel.app/terms' },
-                ].map((page) => (
-                  <Button
-                    key={page.url}
-                    type="button"
-                    size="sm"
-                    variant={newBroadcast.url === page.url ? "default" : "outline"}
-                    onClick={() => setNewBroadcast(prev => ({ ...prev, url: page.url }))}
-                    className="text-xs"
-                  >
-                    {page.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* أو كتابة رابط مخصص */}
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص (لمحطة معينة أو رابط خارجي):</label>
-              <Input
-                placeholder="مثال: https://esma3radio.vercel.app/station/abc123 أو https://example.com"
-                value={newBroadcast.url}
-                onChange={(e) => setNewBroadcast(prev => ({ ...prev, url: e.target.value }))}
-                className="h-12"
-                dir="ltr"
-              />
-            </div>
-
-            {newBroadcast.url && (
-              <p className="text-xs text-green-600 break-all">
-                ✓ سيتم تحويل المستخدم إلى: {newBroadcast.url}
-              </p>
-            )}
-          </div>
-
-          {/* خيار صورة الإشعار */}
-          <div className="border rounded-xl p-4 bg-muted/30">
-            <div className="flex items-center gap-3 mb-3">
-              <ImageIcon className="h-5 w-5 text-[#2D8B8B]" />
-              <span className="font-medium">صورة الإشعار</span>
-            </div>
-
-            <div className="flex gap-2 mb-3">
-              <Button
-                type="button"
-                size="sm"
-                variant={!useCustomIcon ? "default" : "outline"}
-                onClick={() => {
-                  setUseCustomIcon(false);
-                  handleRemoveImage();
-                }}
-              >
-                <Radio className="h-4 w-4 me-1" />
-                اللوجو الافتراضي
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={useCustomIcon ? "default" : "outline"}
-                onClick={() => setUseCustomIcon(true)}
-              >
-                <ImageIcon className="h-4 w-4 me-1" />
-                صورة مخصصة
-              </Button>
-            </div>
-
-            {useCustomIcon && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="image-upload"
-                  />
-                  <label
-                    htmlFor="image-upload"
-                    className="flex items-center gap-2 px-4 py-2 bg-[#2D8B8B] text-white rounded-lg cursor-pointer hover:bg-[#237575] transition-colors"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                    اختر صورة من الجهاز
-                  </label>
-                  {selectedImagePreview && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={handleRemoveImage}
-                      className="text-red-500 border-red-300 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4 me-1" />
-                      حذف
-                    </Button>
-                  )}
-                </div>
-
-                {selectedImagePreview ? (
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedImagePreview}
-                      alt="معاينة"
-                      className="w-20 h-20 rounded-lg object-cover border"
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-green-600">✓ تم اختيار الصورة</p>
-                      <p className="text-xs text-muted-foreground">ستظهر مع الإشعار</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center p-6 border-2 border-dashed border-muted rounded-lg">
-                    <div className="text-center">
-                      <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">اضغط لرفع صورة</p>
-                      <p className="text-xs text-muted-foreground mt-1">PNG, JPG (أقصى 2MB)</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!useCustomIcon && (
-              <div className="flex items-center gap-3">
-                <div className="w-16 h-16 rounded-lg bg-[#2D8B8B] flex items-center justify-center">
-                  <Radio className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">لوجو اسمع راديو</p>
-                  <p className="text-xs text-muted-foreground">سيتم استخدام اللوجو الافتراضي</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={handleSendBroadcast} disabled={isSending} className="gap-2">
-              {isSending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  جاري الإرسال...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  إرسال للجميع
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowUserList(!showUserList);
-                if (!showUserList) fetchUsers();
-              }}
-              className="gap-2"
-            >
-              <User className="h-4 w-4" />
-              إرسال لمستخدم محدد
-            </Button>
-          </div>
-
-          {/* قائمة المستخدمين */}
-          {showUserList && (
-            <div className="border rounded-xl p-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold">اختر المستخدمين ({selectedUsers.length} محدد)</h3>
-                <Button variant="ghost" size="sm" onClick={toggleSelectAll}>
-                  {selectedUsers.length === users.length ? 'إلغاء الكل' : 'اختيار الكل'}
-                </Button>
-              </div>
-
-              {isLoadingUsers ? (
-                <div className="text-center py-4">جاري التحميل...</div>
-              ) : users.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">لا يوجد مستخدمين</div>
-              ) : (
-                <div className="max-h-60 overflow-y-auto space-y-2">
-                  {users.map((user) => (
-                    <div
-                      key={user.id}
-                      onClick={() => toggleUserSelection(user.id)}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                        selectedUsers.includes(user.id)
-                          ? 'bg-[#2D8B8B]/10 border border-[#2D8B8B]'
-                          : 'bg-muted/50 hover:bg-muted'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                        selectedUsers.includes(user.id) && 'bg-[#2D8B8B] border-[#2D8B8B]'
-                      }`}>
-                        {selectedUsers.includes(user.id) && (
-                          <CheckCircle className="h-4 w-4 text-white" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{user.name}</p>
-                          {user.isNew && (
-                            <Badge className="text-xs bg-green-500">جديد</Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {user.lastActive
-                            ? `آخر نشاط: ${new Date(user.lastActive).toLocaleDateString('ar-EG')}`
-                            : 'لا يوجد نشاط'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {user.platforms && user.platforms.length > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            {user.platforms.join(', ')}
-                          </span>
-                        )}
-                        <Badge variant="secondary">{user.subscriptionsCount} جهاز</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {selectedUsers.length > 0 && (
-                <Button
-                  onClick={handleSendToSelected}
-                  className="w-full mt-4 gap-2"
-                  disabled={isSending}
-                >
-                  <Send className="h-4 w-4" />
-                  إرسال لـ {selectedUsers.length} مستخدم
-                </Button>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* الإشعارات المجدولة */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Clock className="h-5 w-5 text-[#2D8B8B]" />
-            الإشعارات المجدولة
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* قائمة الإشعارات */}
-          <div className="space-y-3 mb-6">
-            {scheduledNotifications.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>لا توجد إشعارات مجدولة</p>
-              </div>
-            ) : (
-              scheduledNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`border rounded-xl p-4 transition-all ${
-                    notification.enabled
-                      ? 'border-[#2D8B8B]/30 bg-[#2D8B8B]/5'
-                      : 'border-border bg-muted/30'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{notification.title}</h3>
-                        {notification.enabled ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">{notification.message}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>{notification.time}</span>
-                        <span>•</span>
-                        <span>
-                          {notification.days.length === 7
-                            ? 'كل يوم'
-                            : notification.days.map(d => DAYS_AR[d]).join('، ')}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleSendScheduled(notification)}
-                        className="text-[#2D8B8B] hover:bg-[#2D8B8B]/10"
-                        title="إرسال الآن"
-                      >
-                        <Send className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => toggleNotification(notification.id)}
-                        className={notification.enabled ? 'text-green-500' : 'text-muted-foreground'}
-                        title={notification.enabled ? 'مفعّل' : 'معطّل'}
-                      >
-                        {notification.enabled ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDeleteScheduled(notification.id)}
-                        className="text-red-500"
-                        title="حذف"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* إضافة إشعار جديد */}
-          <div className="border-t pt-4">
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              إضافة إشعار مجدول جديد
-            </h3>
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Input
-                  placeholder="عنوان الإشعار"
-                  value={newScheduled.title}
-                  onChange={(e) => setNewScheduled(prev => ({ ...prev, title: e.target.value }))}
-                  className="h-10"
-                />
-                <Input
-                  placeholder="نص الإشعار"
-                  value={newScheduled.message}
-                  onChange={(e) => setNewScheduled(prev => ({ ...prev, message: e.target.value }))}
-                  className="h-10"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  type="time"
-                  value={newScheduled.time}
-                  onChange={(e) => setNewScheduled(prev => ({ ...prev, time: e.target.value }))}
-                  className="px-3 py-2 rounded-lg border border-border"
-                />
-                <div className="flex gap-1 flex-wrap">
-                  {DAYS_AR.map((day, index) => (
-                    <button
-                      key={index}
-                      onClick={() => toggleDay(index)}
-                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                        newScheduled.days.includes(index)
-                          ? 'bg-[#2D8B8B] text-white'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* رابط التحويل للإشعار المجدول */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-muted-foreground">
-                  رابط التحويل (اختياري)
-                </label>
-
-                <div className="space-y-2">
-                  <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
-                      { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
-                      { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
-                      { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
-                      { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
-                      { name: 'شروط الاستخدام', url: 'https://esma3radio.vercel.app/terms' },
-                    ].map((page) => (
-                      <Button
-                        key={page.url}
-                        type="button"
-                        size="sm"
-                        variant={newScheduled.url === page.url ? "default" : "outline"}
-                        onClick={() => setNewScheduled(prev => ({ ...prev, url: page.url }))}
-                        className="text-xs"
-                      >
-                        {page.name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص:</label>
-                  <Input
-                    placeholder="مثال: https://esma3radio.vercel.app/station/abc123"
-                    value={newScheduled.url}
-                    onChange={(e) => setNewScheduled(prev => ({ ...prev, url: e.target.value }))}
-                    className="h-10"
-                    dir="ltr"
-                  />
-                </div>
-
-                {newScheduled.url && (
-                  <p className="text-xs text-green-600 break-all">
-                    ✓ سيتم تحويل المستخدم إلى: {newScheduled.url}
-                  </p>
-                )}
-              </div>
-
-              {/* صورة الإشعار المجدول */}
-              <div className="border rounded-xl p-4 bg-muted/30">
-                <div className="flex items-center gap-3 mb-3">
-                  <ImageIcon className="h-5 w-5 text-[#2D8B8B]" />
-                  <span className="font-medium">صورة الإشعار (اختياري)</span>
-                </div>
-
-                <div className="flex gap-2 mb-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={!scheduledUseCustomIcon ? "default" : "outline"}
-                    onClick={() => {
-                      setScheduledUseCustomIcon(false);
-                      handleRemoveScheduledImage();
-                    }}
-                  >
-                    <Radio className="h-4 w-4 me-1" />
-                    اللوجو الافتراضي
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={scheduledUseCustomIcon ? "default" : "outline"}
-                    onClick={() => setScheduledUseCustomIcon(true)}
-                  >
-                    <ImageIcon className="h-4 w-4 me-1" />
-                    صورة مخصصة
-                  </Button>
-                </div>
-
-                {scheduledUseCustomIcon && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleScheduledImageUpload}
-                        className="hidden"
-                        id="scheduled-image-upload"
-                      />
-                      <label
-                        htmlFor="scheduled-image-upload"
-                        className="flex items-center gap-2 px-4 py-2 bg-[#2D8B8B] text-white rounded-lg cursor-pointer hover:bg-[#237575] transition-colors"
-                      >
-                        <ImageIcon className="h-4 w-4" />
-                        اختر صورة من الجهاز
-                      </label>
-                      {scheduledImagePreview && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={handleRemoveScheduledImage}
-                          className="text-red-500 border-red-300 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4 me-1" />
-                          حذف
-                        </Button>
-                      )}
-                    </div>
-
-                    {scheduledImagePreview ? (
-                      <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={scheduledImagePreview}
-                          alt="معاينة"
-                          className="w-20 h-20 rounded-lg object-cover border"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-green-600">✓ تم اختيار الصورة</p>
-                          <p className="text-xs text-muted-foreground">ستظهر مع الإشعار المجدول</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center p-4 border-2 border-dashed border-muted rounded-lg">
-                        <div className="text-center">
-                          <ImageIcon className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
-                          <p className="text-sm text-muted-foreground">PNG, JPG (أقصى 2MB)</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!scheduledUseCustomIcon && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-[#2D8B8B] flex items-center justify-center">
-                      <Radio className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">لوجو اسمع راديو</p>
-                      <p className="text-xs text-muted-foreground">اللوجو الافتراضي</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Button onClick={handleAddScheduled} disabled={isAddingScheduled} className="gap-2">
-                {isAddingScheduled ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    جاري الإضافة...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    إضافة إشعار
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 
@@ -1579,6 +1177,806 @@ export default function DashboardPage() {
 
     return (
       <div className="space-y-6">
+        {/* ========== إرسال إشعار ========== */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Send className="h-5 w-5 text-[#2D8B8B]" />
+              إرسال إشعار
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              placeholder="عنوان الإشعار"
+              value={newBroadcast.title}
+              onChange={(e) => setNewBroadcast(prev => ({ ...prev, title: e.target.value }))}
+              className="h-12"
+            />
+            <textarea
+              placeholder="نص الإشعار"
+              value={newBroadcast.message}
+              onChange={(e) => setNewBroadcast(prev => ({ ...prev, message: e.target.value }))}
+              className="w-full h-24 p-4 rounded-xl border border-border resize-none focus:outline-none focus:ring-2 focus:ring-[#2D8B8B]"
+            />
+
+            {/* رابط التحويل */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-muted-foreground">
+                رابط التحويل (اختياري)
+              </label>
+
+              {/* اختيار صفحة من الموقع */}
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
+                    { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
+                    { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
+                    { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
+                    { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
+                    { name: 'شروط الاستخدام', url: 'https://esma3radio.vercel.app/terms' },
+                  ].map((page) => (
+                    <Button
+                      key={page.url}
+                      type="button"
+                      size="sm"
+                      variant={newBroadcast.url === page.url ? "default" : "outline"}
+                      onClick={() => setNewBroadcast(prev => ({ ...prev, url: page.url }))}
+                      className="text-xs"
+                    >
+                      {page.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* أو كتابة رابط مخصص */}
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص (لمحطة معينة أو رابط خارجي):</label>
+                <Input
+                  placeholder="مثال: https://esma3radio.vercel.app/station/abc123 أو https://example.com"
+                  value={newBroadcast.url}
+                  onChange={(e) => setNewBroadcast(prev => ({ ...prev, url: e.target.value }))}
+                  className="h-12"
+                  dir="ltr"
+                />
+              </div>
+
+              {newBroadcast.url && (
+                <p className="text-xs text-green-600 break-all">
+                  ✓ سيتم تحويل المستخدم إلى: {newBroadcast.url}
+                </p>
+              )}
+            </div>
+
+            {/* خيار صورة الإشعار */}
+            <div className="border rounded-xl p-4 bg-muted/30">
+              <div className="flex items-center gap-3 mb-3">
+                <ImageIcon className="h-5 w-5 text-[#2D8B8B]" />
+                <span className="font-medium">صورة الإشعار</span>
+              </div>
+
+              <div className="flex gap-2 mb-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={!useCustomIcon ? "default" : "outline"}
+                  onClick={() => {
+                    setUseCustomIcon(false);
+                    handleRemoveImage();
+                  }}
+                >
+                  <Radio className="h-4 w-4 me-1" />
+                  اللوجو الافتراضي
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={useCustomIcon ? "default" : "outline"}
+                  onClick={() => setUseCustomIcon(true)}
+                >
+                  <ImageIcon className="h-4 w-4 me-1" />
+                  صورة مخصصة
+                </Button>
+              </div>
+
+              {useCustomIcon && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="notif-image-upload"
+                    />
+                    <label
+                      htmlFor="notif-image-upload"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#2D8B8B] text-white rounded-lg cursor-pointer hover:bg-[#237575] transition-colors"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      اختر صورة من الجهاز
+                    </label>
+                    {selectedImagePreview && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleRemoveImage}
+                        className="text-red-500 border-red-300 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 me-1" />
+                        حذف
+                      </Button>
+                    )}
+                  </div>
+
+                  {selectedImagePreview ? (
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedImagePreview}
+                        alt="معاينة"
+                        className="w-20 h-20 rounded-lg object-cover border"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-green-600">✓ تم اختيار الصورة</p>
+                        <p className="text-xs text-muted-foreground">ستظهر مع الإشعار</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center p-6 border-2 border-dashed border-muted rounded-lg">
+                      <div className="text-center">
+                        <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">اضغط لرفع صورة</p>
+                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG (أقصى 2MB)</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!useCustomIcon && (
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-lg bg-[#2D8B8B] flex items-center justify-center">
+                    <Radio className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">لوجو اسمع راديو</p>
+                    <p className="text-xs text-muted-foreground">سيتم استخدام اللوجو الافتراضي</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleSendBroadcast} disabled={isSending} className="gap-2">
+                {isSending ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    جاري الإرسال...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    إرسال للجميع
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowUserList(!showUserList);
+                  if (!showUserList) fetchUsers();
+                }}
+                className="gap-2"
+              >
+                <User className="h-4 w-4" />
+                إرسال لمستخدم محدد
+              </Button>
+            </div>
+
+            {/* قائمة المستخدمين */}
+            {showUserList && (
+              <div className="border rounded-xl p-4 mt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">اختر المستخدمين ({selectedUsers.length} محدد)</h3>
+                  <Button variant="ghost" size="sm" onClick={toggleSelectAll}>
+                    {selectedUsers.length === users.length ? 'إلغاء الكل' : 'اختيار الكل'}
+                  </Button>
+                </div>
+
+                {isLoadingUsers ? (
+                  <div className="text-center py-4">جاري التحميل...</div>
+                ) : users.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">لا يوجد مستخدمين</div>
+                ) : (
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {users.map((user) => (
+                      <div
+                        key={user.id}
+                        onClick={() => toggleUserSelection(user.id)}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                          selectedUsers.includes(user.id)
+                            ? 'bg-[#2D8B8B]/10 border border-[#2D8B8B]'
+                            : 'bg-muted/50 hover:bg-muted'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                          selectedUsers.includes(user.id) && 'bg-[#2D8B8B] border-[#2D8B8B]'
+                        }`}>
+                          {selectedUsers.includes(user.id) && (
+                            <CheckCircle className="h-4 w-4 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{user.name}</p>
+                            {user.isNew && (
+                              <Badge className="text-xs bg-green-500">جديد</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {user.lastActive
+                              ? `آخر نشاط: ${new Date(user.lastActive).toLocaleDateString('ar-EG')}`
+                              : 'لا يوجد نشاط'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {user.platforms && user.platforms.length > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {user.platforms.join(', ')}
+                            </span>
+                          )}
+                          <Badge variant="secondary">{user.subscriptionsCount} جهاز</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedUsers.length > 0 && (
+                  <Button
+                    onClick={handleSendToSelected}
+                    className="w-full mt-4 gap-2"
+                    disabled={isSending}
+                  >
+                    <Send className="h-4 w-4" />
+                    إرسال لـ {selectedUsers.length} مستخدم
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ========== الإشعارات المجدولة ========== */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Clock className="h-5 w-5 text-[#2D8B8B]" />
+              الإشعارات المجدولة
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* قائمة الإشعارات */}
+            <div className="space-y-3 mb-6">
+              {scheduledNotifications.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>لا توجد إشعارات مجدولة</p>
+                </div>
+              ) : (
+                scheduledNotifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`border rounded-xl p-4 transition-all ${
+                      notification.enabled
+                        ? 'border-[#2D8B8B]/30 bg-[#2D8B8B]/5'
+                        : 'border-border bg-muted/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold">{notification.title}</h3>
+                          {notification.enabled ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{notification.message}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{notification.time}</span>
+                          <span>•</span>
+                          <span>
+                            {notification.days.length === 7
+                              ? 'كل يوم'
+                              : notification.days.map(d => DAYS_AR[d]).join('، ')}
+                          </span>
+                        </div>
+                        {notification.icon && (
+                          <div className="mt-2">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={notification.icon} alt="" className="w-8 h-8 rounded object-cover" />
+                          </div>
+                        )}
+                        {notification.url && (
+                          <p className="text-xs text-blue-500 mt-1 truncate" dir="ltr">{notification.url}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => handleEditScheduled(notification)}
+                          className="h-8 w-8"
+                          title="تعديل"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSendScheduled(notification)}
+                          className="text-[#2D8B8B] hover:bg-[#2D8B8B]/10"
+                          title="إرسال الآن"
+                        >
+                          <Send className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleNotification(notification.id)}
+                          className={notification.enabled ? 'text-green-500' : 'text-muted-foreground'}
+                          title={notification.enabled ? 'مفعّل' : 'معطّل'}
+                        >
+                          {notification.enabled ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDeleteScheduled(notification.id)}
+                          className="text-red-500"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* ========== نموذج تعديل إشعار مجدول ========== */}
+            {editingNotification && (
+              <div className="border-t pt-4 mb-6">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Pencil className="h-4 w-4" />
+                  تعديل الإشعار: {editingNotification.title}
+                </h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input
+                      placeholder="عنوان الإشعار"
+                      value={editScheduled.title}
+                      onChange={(e) => setEditScheduled(prev => ({ ...prev, title: e.target.value }))}
+                      className="h-10"
+                    />
+                    <Input
+                      placeholder="نص الإشعار"
+                      value={editScheduled.message}
+                      onChange={(e) => setEditScheduled(prev => ({ ...prev, message: e.target.value }))}
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="time"
+                      value={editScheduled.time}
+                      onChange={(e) => setEditScheduled(prev => ({ ...prev, time: e.target.value }))}
+                      className="px-3 py-2 rounded-lg border border-border"
+                    />
+                    <div className="flex gap-1 flex-wrap">
+                      {DAYS_AR.map((day, index) => (
+                        <button
+                          key={index}
+                          onClick={() => toggleEditDay(index)}
+                          className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                            editScheduled.days.includes(index)
+                              ? 'bg-[#2D8B8B] text-white'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* رابط التحويل للتعديل */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      رابط التحويل (اختياري)
+                    </label>
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
+                          { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
+                          { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
+                          { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
+                          { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
+                          { name: 'شروط الاستخدام', url: 'https://esma3radio.vercel.app/terms' },
+                        ].map((page) => (
+                          <Button
+                            key={page.url}
+                            type="button"
+                            size="sm"
+                            variant={editScheduled.url === page.url ? "default" : "outline"}
+                            onClick={() => setEditScheduled(prev => ({ ...prev, url: page.url }))}
+                            className="text-xs"
+                          >
+                            {page.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص:</label>
+                      <Input
+                        placeholder="مثال: https://esma3radio.vercel.app/station/abc123"
+                        value={editScheduled.url}
+                        onChange={(e) => setEditScheduled(prev => ({ ...prev, url: e.target.value }))}
+                        className="h-10"
+                        dir="ltr"
+                      />
+                    </div>
+                    {editScheduled.url && (
+                      <p className="text-xs text-green-600 break-all">
+                        ✓ سيتم تحويل المستخدم إلى: {editScheduled.url}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* صورة الإشعار المجدول - التعديل */}
+                  <div className="border rounded-xl p-4 bg-muted/30">
+                    <div className="flex items-center gap-3 mb-3">
+                      <ImageIcon className="h-5 w-5 text-[#2D8B8B]" />
+                      <span className="font-medium">صورة الإشعار (اختياري)</span>
+                    </div>
+
+                    <div className="flex gap-2 mb-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={!editScheduledUseCustomIcon ? "default" : "outline"}
+                        onClick={() => {
+                          setEditScheduledUseCustomIcon(false);
+                          handleEditRemoveScheduledImage();
+                        }}
+                      >
+                        <Radio className="h-4 w-4 me-1" />
+                        اللوجو الافتراضي
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editScheduledUseCustomIcon ? "default" : "outline"}
+                        onClick={() => setEditScheduledUseCustomIcon(true)}
+                      >
+                        <ImageIcon className="h-4 w-4 me-1" />
+                        صورة مخصصة
+                      </Button>
+                    </div>
+
+                    {editScheduledUseCustomIcon && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleEditScheduledImageUpload}
+                            className="hidden"
+                            id="edit-scheduled-image-upload"
+                          />
+                          <label
+                            htmlFor="edit-scheduled-image-upload"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#2D8B8B] text-white rounded-lg cursor-pointer hover:bg-[#237575] transition-colors"
+                          >
+                            <ImageIcon className="h-4 w-4" />
+                            اختر صورة من الجهاز
+                          </label>
+                          {editScheduledImagePreview && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={handleEditRemoveScheduledImage}
+                              className="text-red-500 border-red-300 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4 me-1" />
+                              حذف
+                            </Button>
+                          )}
+                        </div>
+
+                        {editScheduledImagePreview ? (
+                          <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={editScheduledImagePreview}
+                              alt="معاينة"
+                              className="w-20 h-20 rounded-lg object-cover border"
+                            />
+                            <div>
+                              <p className="text-sm font-medium text-green-600">✓ تم اختيار الصورة</p>
+                              <p className="text-xs text-muted-foreground">ستظهر مع الإشعار المجدول</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center p-4 border-2 border-dashed border-muted rounded-lg">
+                            <div className="text-center">
+                              <ImageIcon className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                              <p className="text-sm text-muted-foreground">PNG, JPG (أقصى 2MB)</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!editScheduledUseCustomIcon && (
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-[#2D8B8B] flex items-center justify-center">
+                          <Radio className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">لوجو اسمع راديو</p>
+                          <p className="text-xs text-muted-foreground">اللوجو الافتراضي</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="gap-2">
+                      {isSavingEdit ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          جاري الحفظ...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4" />
+                          حفظ التعديلات
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="outline" onClick={handleCancelEdit} className="gap-2">
+                      إلغاء
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========== إضافة إشعار جديد ========== */}
+            <div className="border-t pt-4">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                إضافة إشعار مجدول جديد
+              </h3>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Input
+                    placeholder="عنوان الإشعار"
+                    value={newScheduled.title}
+                    onChange={(e) => setNewScheduled(prev => ({ ...prev, title: e.target.value }))}
+                    className="h-10"
+                  />
+                  <Input
+                    placeholder="نص الإشعار"
+                    value={newScheduled.message}
+                    onChange={(e) => setNewScheduled(prev => ({ ...prev, message: e.target.value }))}
+                    className="h-10"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="time"
+                    value={newScheduled.time}
+                    onChange={(e) => setNewScheduled(prev => ({ ...prev, time: e.target.value }))}
+                    className="px-3 py-2 rounded-lg border border-border"
+                  />
+                  <div className="flex gap-1 flex-wrap">
+                    {DAYS_AR.map((day, index) => (
+                      <button
+                        key={index}
+                        onClick={() => toggleDay(index)}
+                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          newScheduled.days.includes(index)
+                            ? 'bg-[#2D8B8B] text-white'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* رابط التحويل للإشعار المجدول */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    رابط التحويل (اختياري)
+                  </label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">اختر صفحة من الموقع:</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { name: 'الصفحة الرئيسية', url: 'https://esma3radio.vercel.app/' },
+                        { name: 'مساعد الذكاء الاصطناعي', url: 'https://esma3radio.vercel.app/ai-radio-assistant' },
+                        { name: 'حول التطبيق', url: 'https://esma3radio.vercel.app/about' },
+                        { name: 'اتصل بنا', url: 'https://esma3radio.vercel.app/contact' },
+                        { name: 'سياسة الخصوصية', url: 'https://esma3radio.vercel.app/privacy' },
+                        { name: 'شروط الاستخدام', url: 'https://esma3radio.vercel.app/terms' },
+                      ].map((page) => (
+                        <Button
+                          key={page.url}
+                          type="button"
+                          size="sm"
+                          variant={newScheduled.url === page.url ? "default" : "outline"}
+                          onClick={() => setNewScheduled(prev => ({ ...prev, url: page.url }))}
+                          className="text-xs"
+                        >
+                          {page.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">أو اكتب رابط مخصص:</label>
+                    <Input
+                      placeholder="مثال: https://esma3radio.vercel.app/station/abc123"
+                      value={newScheduled.url}
+                      onChange={(e) => setNewScheduled(prev => ({ ...prev, url: e.target.value }))}
+                      className="h-10"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  {newScheduled.url && (
+                    <p className="text-xs text-green-600 break-all">
+                      ✓ سيتم تحويل المستخدم إلى: {newScheduled.url}
+                    </p>
+                  )}
+                </div>
+
+                {/* صورة الإشعار المجدول */}
+                <div className="border rounded-xl p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-3">
+                    <ImageIcon className="h-5 w-5 text-[#2D8B8B]" />
+                    <span className="font-medium">صورة الإشعار (اختياري)</span>
+                  </div>
+
+                  <div className="flex gap-2 mb-3">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={!scheduledUseCustomIcon ? "default" : "outline"}
+                      onClick={() => {
+                        setScheduledUseCustomIcon(false);
+                        handleRemoveScheduledImage();
+                      }}
+                    >
+                      <Radio className="h-4 w-4 me-1" />
+                      اللوجو الافتراضي
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={scheduledUseCustomIcon ? "default" : "outline"}
+                      onClick={() => setScheduledUseCustomIcon(true)}
+                    >
+                      <ImageIcon className="h-4 w-4 me-1" />
+                      صورة مخصصة
+                    </Button>
+                  </div>
+
+                  {scheduledUseCustomIcon && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleScheduledImageUpload}
+                          className="hidden"
+                          id="scheduled-image-upload"
+                        />
+                        <label
+                          htmlFor="scheduled-image-upload"
+                          className="flex items-center gap-2 px-4 py-2 bg-[#2D8B8B] text-white rounded-lg cursor-pointer hover:bg-[#237575] transition-colors"
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                          اختر صورة من الجهاز
+                        </label>
+                        {scheduledImagePreview && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleRemoveScheduledImage}
+                            className="text-red-500 border-red-300 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 me-1" />
+                            حذف
+                          </Button>
+                        )}
+                      </div>
+
+                      {scheduledImagePreview ? (
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={scheduledImagePreview}
+                            alt="معاينة"
+                            className="w-20 h-20 rounded-lg object-cover border"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-green-600">✓ تم اختيار الصورة</p>
+                            <p className="text-xs text-muted-foreground">ستظهر مع الإشعار المجدول</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center p-4 border-2 border-dashed border-muted rounded-lg">
+                          <div className="text-center">
+                            <ImageIcon className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                            <p className="text-sm text-muted-foreground">PNG, JPG (أقصى 2MB)</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!scheduledUseCustomIcon && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-[#2D8B8B] flex items-center justify-center">
+                        <Radio className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">لوجو اسمع راديو</p>
+                        <p className="text-xs text-muted-foreground">اللوجو الافتراضي</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Button onClick={handleAddScheduled} disabled={isAddingScheduled} className="gap-2">
+                  {isAddingScheduled ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      جاري الإضافة...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      إضافة إشعار
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ========== تحليلات الإشعارات ========== */}
         {/* قمع الأداء */}
         <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">

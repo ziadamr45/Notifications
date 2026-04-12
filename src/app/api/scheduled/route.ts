@@ -93,7 +93,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, enabled, title, message, time, days } = body;
+    const { id, enabled, title, message, time, days, icon, url } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'معرف الإشعار مطلوب' }, { status: 400 });
@@ -102,10 +102,12 @@ export async function PUT(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: Record<string, any> = {};
     if (enabled !== undefined) updateData.enabled = enabled;
-    if (title) updateData.title = title;
-    if (message) updateData.message = message;
-    if (time) updateData.time = time;
-    if (days) updateData.days = JSON.stringify(days);
+    if (title !== undefined) updateData.title = title;
+    if (message !== undefined) updateData.message = message;
+    if (time !== undefined) updateData.time = time;
+    if (days !== undefined) updateData.days = JSON.stringify(days);
+    if (icon !== undefined) updateData.icon = icon || null;
+    if (url !== undefined) updateData.url = url || null;
 
     const notification = await prisma.scheduledNotification.update({
       where: { id },
