@@ -1142,38 +1142,7 @@ export default function DashboardPage() {
 
   // تبويب تحليلات الإشعارات
   const renderNotificationAnalyticsTab = () => {
-    if (isLoadingAnalytics) {
-      return (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-          <SkeletonCard />
-          <SkeletonTable rows={8} />
-        </div>
-      );
-    }
-
-    if (!analytics) {
-      return (
-        <AnalyticsErrorCard
-          message={analyticsError || 'جاري التحميل...'}
-          onRetry={() => {
-            setLoadedTabs(prev => {
-              const next = new Set(prev);
-              next.delete('notifications');
-              return next;
-            });
-            fetchAnalytics();
-          }}
-        />
-      );
-    }
-
-    const n = analytics.notifications;
+    const n = analytics?.notifications;
 
     return (
       <div className="space-y-6">

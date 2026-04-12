@@ -35,11 +35,6 @@ async function withRetry<T>(
   throw lastError;
 }
 
-// حساب الفرق بالدقايق بين وقتين (نفس اليوم)
-function minutesDiff(hour: number, minute: number): number {
-  return hour * 60 + minute;
-}
-
 export async function GET(request: NextRequest) {
   try {
     // التحقق: إما من Vercel Cron header أو من External Cron Secret
@@ -69,7 +64,6 @@ export async function GET(request: NextRequest) {
     const currentHour = egyptDate.getHours();
     const currentMinute = egyptDate.getMinutes();
     const currentDay = egyptDate.getDay();
-    const currentTimeInMinutes = minutesDiff(currentHour, currentMinute);
 
     console.log(`[Cron] Running at ${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')} Egypt (day: ${currentDay})`);
 
@@ -95,13 +89,10 @@ export async function GET(request: NextRequest) {
       if (!days.includes(currentDay)) continue;
 
       const [scheduledHour, scheduledMinute] = notification.time.split(':').map(Number);
-      const scheduledTimeInMinutes = minutesDiff(scheduledHour, scheduledMinute);
-      const timeDiff = Math.abs(currentTimeInMinutes - scheduledTimeInMinutes);
 
-      // الأولوية: الدقة - التحقق من مطابقة الدقيقة بالظبط
-      // الحالة الاستثنائية: لو فات 1 دقيقة بس (بسبب تأخير الكرون) - كحالة إنقاذ فقط
+      // التحقق: لازم نفس الساعة، والفرق بالدقايق يكون في نطاق السماح
       const isExactMatch = scheduledHour === currentHour && scheduledMinute === currentMinute;
-      const isGracePeriod = timeDiff === 1; // دقيقة واحدة كحد أقصى
+      const isGracePeriod = scheduledHour === currentHour && (currentMinute - scheduledMinute > 0 && currentMinute - scheduledMinute <= 2); // دقيقتين كحد أقصى، بنفس الساعة
 
       if (!isExactMatch && !isGracePeriod) continue;
 
