@@ -181,7 +181,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground mt-6">
-          © {new Date().getFullYear()} اسمع راديو - جميع الحقوق محفوظة | Ziad Amr
+          © {new Date().getFullYear()} اسمع راديو - جميع الحقوق محفوظة | <a href="https://ziadamrme.vercel.app" target="_blank" rel="noopener noreferrer" className="text-[#2D8B8B] hover:underline">Ziad Amr</a>
         </p>
       </div>
     </div>
