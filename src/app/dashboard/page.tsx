@@ -198,6 +198,7 @@ const DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأرب
 // تعريف التبويبات
 const TABS = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard },
+  { id: 'send-notifications', label: 'الإشعارات', icon: Send },
   { id: 'notifications', label: 'تحليلات الإشعارات', icon: Bell },
   { id: 'listening', label: 'تحليلات الاستماع', icon: Headphones },
   { id: 'users', label: 'المستخدمين', icon: Users },
@@ -1140,12 +1141,9 @@ export default function DashboardPage() {
     </div>
   );
 
-  // تبويب تحليلات الإشعارات
-  const renderNotificationAnalyticsTab = () => {
-    const n = analytics?.notifications;
-
-    return (
-      <div className="space-y-6">
+  // تبويب الإشعارات (إرسال + مجدولة)
+  const renderSendNotificationsTab = () => (
+    <div className="space-y-6">
         {/* ========== إرسال إشعار ========== */}
         <Card>
           <CardHeader>
@@ -1447,9 +1445,9 @@ export default function DashboardPage() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{notification.title}</h3>
+                          <h3 className="font-semibold truncate">{notification.title}</h3>
                           {notification.enabled ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />
                           ) : (
@@ -1477,7 +1475,7 @@ export default function DashboardPage() {
                           <p className="text-xs text-blue-500 mt-1 truncate" dir="ltr">{notification.url}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         <Button
                           size="icon"
                           variant="outline"
@@ -1944,7 +1942,46 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+    </div>
+  );
 
+  // تبويب تحليلات الإشعارات
+  const renderNotificationAnalyticsTab = () => {
+    if (isLoadingAnalytics) {
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+          <SkeletonCard />
+          <SkeletonTable rows={8} />
+        </div>
+      );
+    }
+
+    if (!analytics) {
+      return (
+        <AnalyticsErrorCard
+          message={analyticsError || 'جاري التحميل...'}
+          onRetry={() => {
+            setLoadedTabs(prev => {
+              const next = new Set(prev);
+              next.delete('notifications');
+              return next;
+            });
+            fetchAnalytics();
+          }}
+        />
+      );
+    }
+
+    const n = analytics.notifications;
+
+    return (
+      <div className="space-y-6">
         {/* ========== تحليلات الإشعارات ========== */}
         {/* قمع الأداء */}
         <div>
@@ -3108,6 +3145,7 @@ export default function DashboardPage() {
       {/* محتوى التبويب */}
       <main className="container mx-auto px-4 py-6">
         {activeTab === 'overview' && renderOverviewTab()}
+        {activeTab === 'send-notifications' && renderSendNotificationsTab()}
         {activeTab === 'notifications' && renderNotificationAnalyticsTab()}
         {activeTab === 'listening' && renderListeningAnalyticsTab()}
         {activeTab === 'users' && renderUsersTab()}
