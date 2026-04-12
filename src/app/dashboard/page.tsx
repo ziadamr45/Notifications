@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated, clearAuthSession } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -319,6 +319,7 @@ export default function DashboardPage() {
   const [editScheduledUseCustomIcon, setEditScheduledUseCustomIcon] = useState(false);
   const [editScheduledImagePreview, setEditScheduledImagePreview] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const editFormRef = useRef<HTMLDivElement>(null);
 
   // حالة الأناليتكس - تحميل كسول
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -648,7 +649,7 @@ export default function DashboardPage() {
     setScheduledUseCustomIcon(false);
   };
 
-  // تعديل إشعار مجدول - فتح نافذة التعديل
+  // تعديل إشعار مجدول - فتح نافذة التعديل + سكرول تلقائي
   const handleEditScheduled = (notification: ScheduledNotification) => {
     setEditingNotification(notification);
     setEditScheduled({
@@ -669,6 +670,16 @@ export default function DashboardPage() {
       setEditScheduledImagePreview(null);
     }
   };
+
+  // سكرول تلقائي لفورم التعديل لما يفتح
+  useEffect(() => {
+    if (editingNotification && editFormRef.current) {
+      // نستخدم setTimeout عشان نضمن إن الـ DOM اتحديث قبل السكرول
+      setTimeout(() => {
+        editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [editingNotification]);
 
   // حفظ تعديل إشعار مجدول
   const handleSaveEdit = async () => {
@@ -1476,22 +1487,22 @@ export default function DashboardPage() {
                         : 'border-border bg-muted/30'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold truncate">{notification.title}</h3>
                           {notification.enabled ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
                           ) : (
-                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                            <AlertCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">{notification.message}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
+                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{notification.message}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                          <Clock className="h-3 w-3 flex-shrink-0" />
                           <span>{notification.time}</span>
                           <span>•</span>
-                          <span>
+                          <span className="truncate">
                             {notification.days.length === 7
                               ? 'كل يوم'
                               : notification.days.map(d => DAYS_AR[d]).join('، ')}
@@ -1507,7 +1518,7 @@ export default function DashboardPage() {
                           <p className="text-xs text-blue-500 mt-1 truncate" dir="ltr">{notification.url}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
                         <Button
                           size="icon"
                           variant="outline"
@@ -1553,7 +1564,7 @@ export default function DashboardPage() {
 
             {/* ========== نموذج تعديل إشعار مجدول ========== */}
             {editingNotification && (
-              <div className="border-t pt-4 mb-6">
+              <div ref={editFormRef} className="border-t pt-4 mb-6 scroll-mt-24">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Pencil className="h-4 w-4" />
                   تعديل الإشعار: {editingNotification.title}
