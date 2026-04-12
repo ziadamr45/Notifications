@@ -47,6 +47,16 @@ import {
   Pencil,
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // أنواع البيانات
 interface ScheduledNotification {
@@ -212,6 +222,14 @@ function formatNumber(n: number): string {
   return n.toLocaleString('ar-EG');
 }
 
+// تحويل الوقت من 24 ساعة لـ 12 ساعة
+function formatTime12(time24: string): string {
+  const [hours, minutes] = time24.split(':').map(Number);
+  const period = hours >= 12 ? 'م' : 'ص';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
 // مكون التحميل (سكيليتون)
 function SkeletonCard() {
   return (
@@ -320,6 +338,16 @@ export default function DashboardPage() {
   const [editScheduledImagePreview, setEditScheduledImagePreview] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const editFormRef = useRef<HTMLDivElement>(null);
+
+  // حالة التأكيد قبل الحذف أو العمليات الحساسة
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'delete' | 'disable' | 'cancel-edit';
+    title: string;
+    message: string;
+    confirmText: string;
+    confirmVariant?: 'destructive' | 'default';
+    onConfirm: () => void;
+  } | null>(null);
 
   // حالة الأناليتكس - تحميل كسول
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -970,45 +998,78 @@ export default function DashboardPage() {
     }
   };
 
-  // حذف إشعار مجدول
-  const handleDeleteScheduled = async (id: string) => {
-    try {
-      const response = await fetch(`/api/scheduled?id=${id}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setScheduledNotifications(prev => prev.filter(n => n.id !== id));
-        toast.success('تم حذف الإشعار');
-      }
-    } catch {
-      toast.error('فشل في حذف الإشعار');
-    }
+  // حذف إشعار مجدول - يظهر تأكيد أولاً
+  const handleDeleteScheduled = (id: string) => {
+    const notification = scheduledNotifications.find(n => n.id === id);
+    setConfirmAction({
+      type: 'delete',
+      title: 'حذف الإشعار المجدول',
+      message: `هل أنت متأكد من حذف الإشعار "${notification?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`,
+      confirmText: 'نعم، احذف',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/scheduled?id=${id}`, { method: 'DELETE' });
+          const result = await response.json();
+          if (result.success) {
+            setScheduledNotifications(prev => prev.filter(n => n.id !== id));
+            toast.success('تم حذف الإشعار');
+          }
+        } catch {
+          toast.error('فشل في حذف الإشعار');
+        }
+      },
+    });
   };
 
-  // تحديث حالة التفعيل
-  const toggleNotification = async (id: string) => {
+  // تحديث حالة التفعيل - تأكيد عند التعطيل
+  const toggleNotification = (id: string) => {
     const notification = scheduledNotifications.find(n => n.id === id);
     if (!notification) return;
 
-    try {
-      const response = await fetch('/api/scheduled', {
+    // لو هيعطله، يظهر تأكيد. لو هيفعله، يمشي مباشرة
+    if (notification.enabled) {
+      setConfirmAction({
+        type: 'disable',
+        title: 'تعطيل الإشعار',
+        message: `هل تريد تعطيل الإشعار "${notification.title}"؟ لن يتم إرساله في مواعيده المجدولة.`,
+        confirmText: 'نعم، عطّل',
+        onConfirm: async () => {
+          try {
+            const response = await fetch('/api/scheduled', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, enabled: false }),
+            });
+            const result = await response.json();
+            if (result.success) {
+              setScheduledNotifications(prev =>
+                prev.map(n => n.id === id ? { ...n, enabled: false } : n)
+              );
+              toast.success('تم تعطيل الإشعار');
+            }
+          } catch {
+            toast.error('فشل في تحديث الإشعار');
+          }
+        },
+      });
+    } else {
+      // تفعيل مباشر بدون تأكيد
+      fetch('/api/scheduled', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, enabled: !notification.enabled }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setScheduledNotifications(prev =>
-          prev.map(n => n.id === id ? { ...n, enabled: !n.enabled } : n)
-        );
-      }
-    } catch {
-      toast.error('فشل في تحديث الإشعار');
+        body: JSON.stringify({ id, enabled: true }),
+      })
+        .then(res => res.json())
+        .then(result => {
+          if (result.success) {
+            setScheduledNotifications(prev =>
+              prev.map(n => n.id === id ? { ...n, enabled: true } : n)
+            );
+            toast.success('تم تفعيل الإشعار');
+          }
+        })
+        .catch(() => toast.error('فشل في تحديث الإشعار'));
     }
   };
 
@@ -1500,7 +1561,7 @@ export default function DashboardPage() {
                         <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{notification.message}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                           <Clock className="h-3 w-3 flex-shrink-0" />
-                          <span>{notification.time}</span>
+                          <span>{formatTime12(notification.time)}</span>
                           <span>•</span>
                           <span className="truncate">
                             {notification.days.length === 7
@@ -3194,6 +3255,28 @@ export default function DashboardPage() {
         {activeTab === 'users' && renderUsersTab()}
         {activeTab === 'devices' && renderDevicesTab()}
       </main>
+
+      {/* نافذة التأكيد */}
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                confirmAction?.onConfirm();
+                setConfirmAction(null);
+              }}
+              className={confirmAction?.confirmVariant === 'destructive' ? 'bg-red-600 hover:bg-red-700' : ''}
+            >
+              {confirmAction?.confirmText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
