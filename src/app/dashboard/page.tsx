@@ -1518,7 +1518,7 @@ export default function DashboardPage() {
                           <p className="text-xs text-blue-500 mt-1 truncate" dir="ltr">{notification.url}</p>
                         )}
                       </div>
-                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
                         <Button
                           size="icon"
                           variant="outline"
