@@ -3125,7 +3125,7 @@ export default function DashboardPage() {
               <Radio className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">لوحة تحكم الإشعارات</h1>
+              <h1 className="text-xl font-bold text-white">لوحة تحكم اسمع راديو</h1>
               <p className="text-sm text-white/70">تطبيق اسمع راديو</p>
             </div>
           </div>

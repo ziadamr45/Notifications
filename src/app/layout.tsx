@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "لوحة تحكم الإشعارات - اسمع راديو",
-  description: "لوحة تحكم إشعارات تطبيق اسمع راديو",
+  title: "لوحة تحكم اسمع راديو",
+  description: "لوحة تحكم تطبيق اسمع راديو",
   icons: {
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
@@ -25,8 +25,8 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: "لوحة تحكم الإشعارات - اسمع راديو",
-    description: "لوحة تحكم إشعارات تطبيق اسمع راديو",
+    title: "لوحة تحكم اسمع راديو",
+    description: "لوحة تحكم تطبيق اسمع راديو",
     images: ["/og-image.png"],
     type: "website",
   },

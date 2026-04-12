@@ -83,7 +83,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#2D8B8B] to-[#237575] shadow-xl mb-4">
             <Radio className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">لوحة تحكم الإشعارات</h1>
+          <h1 className="text-2xl font-bold text-foreground">لوحة تحكم اسمع راديو</h1>
           <p className="text-muted-foreground mt-2">تطبيق اسمع راديو</p>
         </div>
 
